@@ -17,9 +17,61 @@
 
 \section*{\centering \fontsize{14}{17}\sffamily\selectfont Objetivo}
 
-\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados y Anaĺisis}
+Desarrollar un sistema embebido utilizando la tarjeta ESP32-S3 que integre la lectura de un potenciómetro a través del convertidor analógico-digital (ADC) para controlar el brillo de un LED mediante una señal PWM y un transistor MOSFET, visualizando simultáneamente los datos obtenidos en valor absoluto, porcentaje y representación gráfica en una pantalla OLED vía I2C; aplicando además buenas prácticas de programación al estructurar el código fuente en archivos separados (encabezados e implementación) para mejorar la modularidad del proyecto.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 1}
+
+Se llevó a cabo la implementación física del circuito esquemático sobre la protoboard. En la siguiente imagen se presenta el armado final, donde se ve la integración de la tarjeta de desarrollo ESP32-S3 con el potenciometro, el led y la pantalla OLED. Se puede observar la conexión del potenciómetro empleado para la lectura de la señal analógica, el cableado de la pantalla OLED hacia las terminales del bus I2C, y la configuración de la etapa de potencia conformada por el transistor MOSFET 2N7000, el cual se encarga de accionar el LED a partir de la señal PWM.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{e1_circuito.png}
+%     \caption{Circuito final implementado en la protoboard.}
+%     \label{fig:e1_circuito}
+% \end{figure}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 2}
+
+Para el segundo ejercicio, se desarrolló el código encargado de adquirir los datos del convertidor analógico-digital (ADC) y generar la señal PWM correspondiente para el control de iluminación del LED. Adicionalmente, se implementó la interfaz gráfica en la pantalla OLED utilizando la librería u8g2. En la siguiente imagen se muestra el funcionamiento del programa, donde se aprecia el despliegue de los tres elementos requeridos, el valor directo del ADC en un rango de 0 a 4095, su equivalencia porcentual (de 0 a 100\%) y la representación gráfica dinámica que ilustra la lectura actual del potenciómetro.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{e2_circuito.png}
+%     \caption{Circuito funcionando en la protoboard.}
+%     \label{fig:e2_circuito}
+% \end{figure}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 3}
+
+Dado que el comportamiento visual y funcional del sistema se mantiene exactamente igual que en el Ejercicio 2, el enfoque de este apartado se centra exclusivamente en la reestructuración del código. A diferencia de la implementación anterior, el proyecto se dividió en tres archivos clave para mejorar su modularidad: un archivo de encabezado (\texttt{perifericos.h}) para las declaraciones y macros, un archivo de implementación (\texttt{perifericos.c}) con el cuerpo de las funciones, y el archivo principal (\texttt{main.c}) enfocado únicamente en la ejecución de la función principal.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{e3_circuito.png}
+%     \caption{Circuito funcionando en la protoboard.}
+%     \label{fig:e3_circuito}
+% \end{figure}
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Análisis}
+
+Las variables \texttt{ADC\_BITWIDTH\_12} y \texttt{ADC\_ATTEN\_DB\_12} son fundamentales para establecer una resolución de 12 bits, otorgando un rango de valores de 0 a 4095, y aplicar una atenuación que permite medir voltajes de hasta \(\approx\)3.3V en la tarjeta de desarrollo. Alterar esto afectaría directamente la medición, por ejemplo, reducir la atenuación a 0 dB saturaría la lectura con voltajes cercanos a 1.1V, mientras que disminuir el ancho de bits restaría precisión y granularidad a los datos obtenidos. Durante las lecturas, es común observar ruido en los valores, un fenómeno que afecta a todos los microcontroladores debido al ruido eléctrico interno y a las interferencias electromagnéticas captadas por el cableado del circuito.
+
+Por otro lado, la temporización y las frecuencias de actualización juegan un papel crítico en el control de actuadores y la visualización gráfica. Modificar considerablemente la frecuencia de la señal PWM generaría problemas perceptibles:
+
+\begin{itemize}
+    \item Si la frecuencia es demasiado baja, el LED podría parpadear visiblemente, afectando la experiencia del usuario.
+    \item Si la frecuencia es excesivamente alta, la capacitancia parásita del MOSFET podría impedir una conmutación limpia, provocando distorsión en la señal o sobrecalentamiento del componente.
+\end{itemize}
+
+En cuanto a la interfaz gráfica, la velocidad de actualización de la pantalla podría optimizarse a nivel de hardware aumentando la frecuencia del reloj del bus I2C, a nivel de software, refrescando únicamente los elementos dinámicos, como la barra de progreso, en lugar de limpiar y reescribir todo el buffer del display en cada iteración.
 
 \section*{\centering \fontsize{14}{17}\sffamily\selectfont Conclusiones}
+
+El desarrollo demuestra la versatilidad del sistema construido, ya que la arquitectura base puede extrapolarse a diversas aplicaciones prácticas. El potenciómetro, utilizado como entrada analógica, puede ser sustituido por sensores como fotorresistores (LDR) para medir intensidad luminosa o joysticks para controles direccionales. De igual forma, el LED puede reemplazarse por otros actuadores de corriente continua, como motores pequeños, ventiladores o zumbadores, aprovechando el transistor MOSFET para manejar mayores exigencias de corriente. Para garantizar un funcionamiento óptimo en cualquier escenario, es indispensable mitigar el ruido en el ADC implementando soluciones de hardware, como agregar capacitores de desacoplo para filtrar la señal, y soluciones de software, mediante el cálculo de promedios móviles que estabilicen las lecturas.
+
+Finalmente, desde la perspectiva del desarrollo de software, el proyecto resalta la importancia de estructurar el código fuente de manera adecuada. Separar el programa utilizando un archivo de encabezado (\texttt{perifericos.h}) para las macros y declaraciones, junto con un archivo de implementación (\texttt{perifericos.c}) para la lógica de los controladores, otorga ventajas significativas frente a concentrar todo en el \texttt{main.c}. Esta modularización facilita la lectura y el mantenimiento del proyecto al ocultar los detalles de bajo nivel, además de permitir la reutilización de los componentes programados en futuros desarrollos de manera eficiente.
 
 % \input{template/biblio.tex}
 
