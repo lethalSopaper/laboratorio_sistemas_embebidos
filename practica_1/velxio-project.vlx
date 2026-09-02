@@ -1,0 +1,211 @@
+{
+  "format": "velxio-project",
+  "version": 1,
+  "exportedAt": "2026-08-17T22:53:48.904Z",
+  "boards": [
+    {
+      "id": "xiao-esp32-s3",
+      "boardKind": "xiao-esp32-s3",
+      "x": 187,
+      "y": 143,
+      "activeFileGroupId": "group-xiao-esp32-s3",
+      "languageMode": "espidf",
+      "serialBaudRate": 0,
+      "libraries": [
+        "U8g2"
+      ]
+    }
+  ],
+  "fileGroups": {
+    "group-xiao-esp32-s3": [
+      {
+        "name": "main.c",
+        "content": "/*\n * PRÁCTICA: Pantalla OLED SSD1306 por I2C\n *\n * Conexiones:  SDA -> GPIO 5    VCC -> 3V3\n *              SCL -> GPIO 6    GND -> GND\n *\n * Las funciones de dibujo escriben en memoria (framebuffer).\n * La imagen aparece hasta llamar ssd1306_flush().\n * Aquí NO se borra entre figuras: se van acumulando.\n */\n\n#include \"ssd1306.h\"\n#include \"freertos/FreeRTOS.h\"\n#include \"freertos/task.h\"\n\nvoid app_main(void) {\n    ssd1306_init(5, 6);          // SDA, SCL\n    while(1)\n    {\n        \n        ssd1306_clear();\n        ssd1306_flush();\n        vTaskDelay(pdMS_TO_TICKS(500));\n\n        // 1. Un punto\n        ssd1306_pixel(64, 32, true);\n        ssd1306_flush();\n        vTaskDelay(pdMS_TO_TICKS(500)); \n\n        // 2. Una línea horizontal\n        ssd1306_hline(10, 10, 100);\n        ssd1306_flush();\n        vTaskDelay(pdMS_TO_TICKS(500));\n\n        // 3. Una línea vertical\n        ssd1306_vline(10, 10, 40);\n        ssd1306_flush();\n        vTaskDelay(pdMS_TO_TICKS(500));\n\n        // 4. Una línea diagonal\n        \n\n        // 5. Un rectángulo hueco\n        \n\n        // 6. Un rectángulo relleno\n        \n\n        // 7. Un círculo hueco\n        \n\n        // 8. Un círculo relleno\n        \n\n        // 9. Marco alrededor de todo\n        \n    }   \n\n\n    \n}\n"
+      },
+      {
+        "name": "ssd1306.c",
+        "content": "/*\n * ssd1306.c — Implementación del driver SSD1306 128x64 I2C\n *\n * VERSIÓN COMPATIBLE (API I2C \"legacy\", driver/i2c.h)\n *\n *   Funciona en ESP-IDF v4.4, v5.x y v6.0.\n *   Úsala cuando no sepas qué versión de ESP-IDF tiene el entorno,\n *   por ejemplo en simuladores en línea o contenedores antiguos.\n *\n *   La versión que usa driver/i2c_master.h requiere ESP-IDF v5.2 o\n *   superior. Ambas se comportan igual; solo cambia la forma de\n *   configurar el bus y de enviar los bytes.\n *\n *\n * SISTEMA DE COORDENADAS\n *\n *      (0,0) ---------------------------> x   (127)\n *        |\n *        |            pantalla 128 x 64\n *        |\n *        v\n *        y  (63)\n *\n *   El origen está en la esquina SUPERIOR IZQUIERDA.\n *   x crece hacia la derecha, y crece hacia ABAJO.\n *\n *\n * ORGANIZACIÓN DE LA MEMORIA\n *\n *   El SSD1306 divide la pantalla en 8 \"páginas\" de 8 píxeles de alto.\n *   Cada byte del framebuffer cubre 8 píxeles VERTICALES:\n *\n *       byte = fb[x + (y/8) * 128]\n *       bit  = y % 8            (bit 0 = arriba)\n *\n *   Por eso encender un píxel es una operación de máscara, no de índice.\n */\n\n#include \"ssd1306.h\"\n\n#include <stdlib.h>\n#include <string.h>\n\n#include \"driver/i2c.h\"          // API legacy: disponible desde v4.x hasta v6.0\n#include \"esp_log.h\"\n#include \"freertos/FreeRTOS.h\"\n\n#define SSD1306_ADDR  0x3C       // dirección I2C de 7 bits (equivale a 0x78 de 8 bits)\n#define I2C_PORT      I2C_NUM_0  // controlador I2C del microcontrolador\n#define I2C_FREQ_HZ   400000     // 400 kHz (modo rápido)\n#define PAGES         (SSD1306_H / 8)\n\nstatic const char *TAG = \"ssd1306\";\n\nstatic uint8_t s_fb[SSD1306_BUFSZ];            // framebuffer: 1024 bytes en RAM\n\n\n/* ==================================================================\n *  CAPA DE TRANSPORTE I2C  (uso interno, no visible desde main.c)\n * ==================================================================\n *\n *  El primer byte de cada transacción le dice al display qué sigue:\n *      0x00 -> comandos de control\n *      0x40 -> datos para la memoria gráfica (GDDRAM)\n */\n\n/*\n * send_cmd — envía un comando de un solo byte al display.\n *\n *   c : código del comando (ver hoja de datos del SSD1306)\n */\nstatic void send_cmd(uint8_t c) {\n    uint8_t buf[2] = {0x00, c};\n    i2c_master_write_to_device(I2C_PORT, SSD1306_ADDR,\n                               buf, sizeof(buf), pdMS_TO_TICKS(100));\n}\n\n/*\n * send_cmd2 — envía un comando que requiere un parámetro.\n *\n *   c   : código del comando\n *   arg : valor que acompaña al comando\n */\nstatic void send_cmd2(uint8_t c, uint8_t arg) {\n    send_cmd(c);\n    send_cmd(arg);\n}\n\n/*\n * send_data — envía bytes a la memoria gráfica del display.\n *\n *   d : puntero al bloque de bytes a enviar\n *   n : cantidad de bytes (máximo 128, el ancho de una página)\n */\nstatic void send_data(const uint8_t *d, size_t n) {\n    uint8_t buf[SSD1306_W + 1];\n    buf[0] = 0x40;\n    memcpy(&buf[1], d, n);\n    i2c_master_write_to_device(I2C_PORT, SSD1306_ADDR,\n                               buf, n + 1, pdMS_TO_TICKS(100));\n}\n\n\n/* ==================================================================\n *  INICIALIZACIÓN Y VOLCADO\n * ================================================================== */\n\n/*\n * ssd1306_init — configura el bus I2C y arranca el display.\n *                Debe llamarse una sola vez, antes que cualquier otra función.\n *\n *   pin_sda : número de GPIO conectado a la línea SDA (datos)\n *   pin_scl : número de GPIO conectado a la línea SCL (reloj)\n *\n *   Ejemplo:  ssd1306_init(5, 6);\n */\nvoid ssd1306_init(int pin_sda, int pin_scl) {\n\n    // 1. Describir cómo se va a usar el periférico I2C\n    i2c_config_t conf = {\n        .mode             = I2C_MODE_MASTER,      // el ESP32 controla el bus\n        .sda_io_num       = pin_sda,\n        .scl_io_num       = pin_scl,\n        .sda_pullup_en    = GPIO_PULLUP_ENABLE,   // resistencias internas\n        .scl_pullup_en    = GPIO_PULLUP_ENABLE,\n        .master.clk_speed = I2C_FREQ_HZ,\n    };\n    ESP_ERROR_CHECK(i2c_param_config(I2C_PORT, &conf));\n\n    // 2. Activar el controlador. Los tres ceros son los tamaños de los\n    //    búferes de recepción y transmisión (solo se usan en modo esclavo)\n    //    y las banderas de interrupción.\n    ESP_ERROR_CHECK(i2c_driver_install(I2C_PORT, I2C_MODE_MASTER, 0, 0, 0));\n\n    // 3. Secuencia de arranque recomendada por la hoja de datos\n    send_cmd (0xAE);              // display OFF mientras configuramos\n    send_cmd2(0xD5, 0x80);        // divisor de reloj / frecuencia del oscilador\n    send_cmd2(0xA8, 0x3F);        // multiplex ratio = 64 filas\n    send_cmd2(0xD3, 0x00);        // desplazamiento vertical = 0\n    send_cmd (0x40);              // línea de inicio = 0\n    send_cmd2(0x8D, 0x14);        // charge pump ON (genera los ~7V del panel)\n    send_cmd2(0x20, 0x02);        // modo de direccionamiento: por páginas\n    send_cmd (0xA1);              // segment remap: invierte eje X\n    send_cmd (0xC8);              // COM scan descendente: invierte eje Y\n    send_cmd2(0xDA, 0x12);        // configuración de pines COM\n    send_cmd2(0x81, 0xCF);        // contraste\n    send_cmd2(0xD9, 0xF1);        // periodo de pre-carga\n    send_cmd2(0xDB, 0x40);        // nivel VCOMH\n    send_cmd (0xA4);              // mostrar contenido de RAM\n    send_cmd (0xA6);              // modo normal (no invertido)\n    send_cmd (0xAF);              // display ON\n\n    ssd1306_clear();\n    ssd1306_flush();\n    ESP_LOGI(TAG, \"SSD1306 listo en SDA=%d SCL=%d\", pin_sda, pin_scl);\n}\n\n/*\n * ssd1306_flush — copia el framebuffer completo al display.\n *                 Sin esta llamada NADA aparece en pantalla.\n *\n *   (sin argumentos)\n *\n *   Envía 1024 bytes en 8 bloques de 128, uno por página.\n */\nvoid ssd1306_flush(void) {\n    for (uint8_t p = 0; p < PAGES; p++) {\n        send_cmd(0xB0 + p);   // seleccionar página p (0 a 7)\n        send_cmd(0x00);       // columna: nibble bajo  = 0\n        send_cmd(0x10);       // columna: nibble alto  = 0\n        send_data(&s_fb[p * SSD1306_W], SSD1306_W);\n    }\n}\n\n\n/* ==================================================================\n *  PRIMITIVAS DE DIBUJO\n *\n *  Todas escriben SOLO en el framebuffer (RAM).\n *  Para verlas hay que llamar ssd1306_flush() después.\n * ================================================================== */\n\n/*\n * ssd1306_clear — apaga todos los píxeles del framebuffer.\n *   (sin argumentos)\n */\nvoid ssd1306_clear(void) { memset(s_fb, 0x00, sizeof(s_fb)); }\n\n/*\n * ssd1306_fill — enciende todos los píxeles del framebuffer.\n *   (sin argumentos)\n */\nvoid ssd1306_fill(void) { memset(s_fb, 0xFF, sizeof(s_fb)); }\n\n/*\n * ssd1306_pixel — enciende o apaga un solo píxel.\n *\n *   x  : columna,  0 a 127  (izquierda a derecha)\n *   y  : fila,     0 a 63   (arriba hacia abajo)\n *   on : true  = encender el píxel\n *        false = apagarlo\n *\n *   Las coordenadas fuera de la pantalla se ignoran sin causar error.\n *\n *   Ejemplo:  ssd1306_pixel(64, 32, true);   // punto en el centro\n */\nvoid ssd1306_pixel(int x, int y, bool on) {\n    if (x < 0 || x >= SSD1306_W || y < 0 || y >= SSD1306_H) return;\n    uint16_t idx  = x + (y / 8) * SSD1306_W;   // byte que contiene el píxel\n    uint8_t  mask = 1 << (y % 8);              // bit dentro de ese byte\n    if (on) s_fb[idx] |=  mask;\n    else    s_fb[idx] &= ~mask;\n}\n\n/*\n * ssd1306_hline — línea horizontal.\n *\n *   x : columna donde inicia (extremo izquierdo)\n *   y : fila en la que se dibuja\n *   w : largo en píxeles, hacia la derecha\n *\n *   Ejemplo:  ssd1306_hline(10, 10, 100);   // de x=10 a x=109, en y=10\n */\nvoid ssd1306_hline(int x, int y, int w) {\n    for (int i = 0; i < w; i++) ssd1306_pixel(x + i, y, true);\n}\n\n/*\n * ssd1306_vline — línea vertical.\n *\n *   x : columna en la que se dibuja\n *   y : fila donde inicia (extremo superior)\n *   h : alto en píxeles, hacia abajo\n *\n *   Ejemplo:  ssd1306_vline(10, 10, 40);   // de y=10 a y=49, en x=10\n */\nvoid ssd1306_vline(int x, int y, int h) {\n    for (int i = 0; i < h; i++) ssd1306_pixel(x, y + i, true);\n}\n\n/*\n * ssd1306_line — línea recta entre dos puntos cualesquiera.\n *\n *   x0, y0 : coordenadas del punto inicial\n *   x1, y1 : coordenadas del punto final\n *\n *   Usa el algoritmo de Bresenham: solo aritmética entera,\n *   sin multiplicaciones ni punto flotante.\n *\n *   Ejemplo:  ssd1306_line(0, 0, 127, 63);   // diagonal completa\n */\nvoid ssd1306_line(int x0, int y0, int x1, int y1) {\n    int dx =  abs(x1 - x0), sx = (x0 < x1) ? 1 : -1;\n    int dy = -abs(y1 - y0), sy = (y0 < y1) ? 1 : -1;\n    int err = dx + dy;\n    for (;;) {\n        ssd1306_pixel(x0, y0, true);\n        if (x0 == x1 && y0 == y1) break;\n        int e2 = 2 * err;\n        if (e2 >= dy) { err += dy; x0 += sx; }\n        if (e2 <= dx) { err += dx; y0 += sy; }\n    }\n}\n\n/*\n * ssd1306_rect — rectángulo HUECO (solo el contorno).\n *\n *   x : columna de la esquina superior izquierda\n *   y : fila de la esquina superior izquierda\n *   w : ancho total en píxeles\n *   h : alto total en píxeles\n *\n *   Ejemplo:  ssd1306_rect(0, 0, 128, 64);   // marco de toda la pantalla\n */\nvoid ssd1306_rect(int x, int y, int w, int h) {\n    ssd1306_hline(x, y,         w);      // borde superior\n    ssd1306_hline(x, y + h - 1, w);      // borde inferior\n    ssd1306_vline(x,         y, h);      // borde izquierdo\n    ssd1306_vline(x + w - 1, y, h);      // borde derecho\n}\n\n/*\n * ssd1306_box — rectángulo RELLENO.\n *\n *   x : columna de la esquina superior izquierda\n *   y : fila de la esquina superior izquierda\n *   w : ancho total en píxeles\n *   h : alto total en píxeles\n *\n *   Mismos argumentos que ssd1306_rect, pero relleno.\n */\nvoid ssd1306_box(int x, int y, int w, int h) {\n    for (int j = 0; j < h; j++) ssd1306_hline(x, y + j, w);\n}\n\n/*\n * ssd1306_circle — círculo HUECO (solo el contorno).\n *\n *   cx : columna del CENTRO\n *   cy : fila del CENTRO\n *   r  : radio en píxeles\n *\n *   Ojo: a diferencia de los rectángulos, aquí las coordenadas\n *   son las del centro, no las de una esquina.\n *\n *   Algoritmo del punto medio: aprovecha la simetría de 8 octantes,\n *   por eso calcula un octante y refleja los otros siete.\n *\n *   Ejemplo:  ssd1306_circle(64, 32, 20);   // círculo centrado\n */\nvoid ssd1306_circle(int cx, int cy, int r) {\n    int x = r, y = 0, err = 1 - r;\n    while (x >= y) {\n        ssd1306_pixel(cx + x, cy + y, true);\n        ssd1306_pixel(cx - x, cy + y, true);\n        ssd1306_pixel(cx + x, cy - y, true);\n        ssd1306_pixel(cx - x, cy - y, true);\n        ssd1306_pixel(cx + y, cy + x, true);\n        ssd1306_pixel(cx - y, cy + x, true);\n        ssd1306_pixel(cx + y, cy - x, true);\n        ssd1306_pixel(cx - y, cy - x, true);\n        y++;\n        if (err < 0) err += 2 * y + 1;\n        else { x--; err += 2 * (y - x) + 1; }\n    }\n}\n\n/*\n * ssd1306_disc — círculo RELLENO.\n *\n *   cx : columna del CENTRO\n *   cy : fila del CENTRO\n *   r  : radio en píxeles\n *\n *   Recorre el cuadrado que envuelve al círculo y enciende\n *   los píxeles que cumplen  x² + y² <= r²  (Pitágoras).\n */\nvoid ssd1306_disc(int cx, int cy, int r) {\n    for (int y = -r; y <= r; y++)\n        for (int x = -r; x <= r; x++)\n            if (x * x + y * y <= r * r)\n                ssd1306_pixel(cx + x, cy + y, true);\n}\n\n/*\n * ssd1306_bitmap — copia una imagen completa al framebuffer.\n *\n *   xbm : puntero a un arreglo de 1024 bytes en formato XBM,\n *         correspondiente a una imagen de 128 x 64 píxeles\n *\n *   Sobrescribe TODO el framebuffer: no hace falta clear() antes.\n *\n *   Ejemplo:  ssd1306_bitmap(mi_imagen);\n */\nvoid ssd1306_bitmap(const uint8_t *xbm) {\n    memcpy(s_fb, xbm, SSD1306_BUFSZ);\n}\n\n\n/* ==================================================================\n *  UTILIDADES\n *\n *  Estas NO tocan el framebuffer: mandan comandos directos al chip,\n *  así que su efecto es inmediato sin necesidad de flush().\n * ================================================================== */\n\n/*\n * ssd1306_invert — invierte blanco y negro por hardware.\n *\n *   on : true  = modo negativo (lo encendido se ve apagado)\n *        false = modo normal\n */\nvoid ssd1306_invert(bool on) { send_cmd(on ? 0xA7 : 0xA6); }\n\n/*\n * ssd1306_contrast — ajusta el brillo del panel.\n *\n *   v : nivel de 0 (mínimo) a 255 (máximo). El valor inicial es 0xCF.\n */\nvoid ssd1306_contrast(uint8_t v) { send_cmd2(0x81, v); }\n"
+      },
+      {
+        "name": "ssd1306.h",
+        "content": "/*\n * ssd1306.h — Driver SSD1306 128x64 por I2C para ESP-IDF\n *\n * Librería didáctica: solo usa driver/i2c_master.h, sin dependencias externas.\n *\n * Uso básico:\n *     ssd1306_init(5, 6);        // SDA, SCL\n *     ssd1306_clear();\n *     ssd1306_circle(64, 32, 20);\n *     ssd1306_flush();           // nada aparece hasta llamar flush()\n */\n\n#ifndef SSD1306_H\n#define SSD1306_H\n\n#include <stdbool.h>\n#include <stdint.h>\n\n#define SSD1306_W      128\n#define SSD1306_H      64\n#define SSD1306_BUFSZ  (SSD1306_W * SSD1306_H / 8)   // 1024 bytes\n\n/* --- Ciclo de vida --- */\n\n// Inicializa el bus I2C y envía la secuencia de arranque del display.\nvoid ssd1306_init(int pin_sda, int pin_scl);\n\n// Envía el framebuffer al display. Sin esto no se ve nada en pantalla.\nvoid ssd1306_flush(void);\n\n/* --- Dibujo (solo modifican el framebuffer en RAM) --- */\n\nvoid ssd1306_clear(void);                                   // todo apagado\nvoid ssd1306_fill(void);                                    // todo encendido\nvoid ssd1306_pixel(int x, int y, bool on);\nvoid ssd1306_hline(int x, int y, int w);                    // línea horizontal\nvoid ssd1306_vline(int x, int y, int h);                    // línea vertical\nvoid ssd1306_line(int x0, int y0, int x1, int y1);          // línea cualquiera\nvoid ssd1306_rect(int x, int y, int w, int h);              // rectángulo hueco\nvoid ssd1306_box(int x, int y, int w, int h);               // rectángulo relleno\nvoid ssd1306_circle(int cx, int cy, int r);                 // círculo hueco\nvoid ssd1306_disc(int cx, int cy, int r);                   // círculo relleno\n\n// Copia un bitmap XBM de 128x64 (1024 bytes) directo al framebuffer.\nvoid ssd1306_bitmap(const uint8_t *xbm);\n\n/* --- Utilidades --- */\n\nvoid ssd1306_invert(bool on);        // invierte blanco/negro por hardware\nvoid ssd1306_contrast(uint8_t v);    // 0..255\n\n#endif // SSD1306_H\n"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "ssd1306_i2c_4pin_1787006332405_ofp0ad6nu",
+      "metadataId": "ssd1306-i2c-4pin",
+      "x": 13,
+      "y": 303,
+      "properties": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "id": "power_supply_1787006340452_qwem2bv6d",
+      "metadataId": "power-supply",
+      "x": -43.3046875,
+      "y": 80.74022674560547,
+      "properties": {
+        "mode": "dc",
+        "voltage": 5,
+        "frequency": 50,
+        "currentLimit": 1
+      }
+    }
+  ],
+  "wires": [
+    {
+      "waypoints": [
+        {
+          "x": 301.78515625,
+          "y": 111.74022674560547
+        },
+        {
+          "x": 301.78515625,
+          "y": 168
+        }
+      ],
+      "id": "wire-1787006349873",
+      "start": {
+        "componentId": "power_supply_1787006340452_qwem2bv6d",
+        "pinName": "SIG",
+        "x": 42.6953125,
+        "y": 110.74022674560547
+      },
+      "end": {
+        "componentId": "xiao-esp32-s3",
+        "pinName": "5V",
+        "x": 270,
+        "y": 168
+      },
+      "color": "#cc0000",
+      "autoRouted": false
+    },
+    {
+      "waypoints": [
+        {
+          "x": 331.78515625,
+          "y": 134.74022674560547
+        },
+        {
+          "x": 310.78515625,
+          "y": 135.74022674560547
+        },
+        {
+          "x": 310.78515625,
+          "y": 180
+        }
+      ],
+      "id": "wire-1787006352843",
+      "start": {
+        "componentId": "power_supply_1787006340452_qwem2bv6d",
+        "pinName": "GND",
+        "x": 42.6953125,
+        "y": 134.74022674560547
+      },
+      "end": {
+        "componentId": "xiao-esp32-s3",
+        "pinName": "GND",
+        "x": 270,
+        "y": 180
+      },
+      "color": "#808080",
+      "autoRouted": false
+    },
+    {
+      "waypoints": [
+        {
+          "x": 70.5,
+          "y": 135.74022674560547
+        }
+      ],
+      "id": "wire-1787006356415",
+      "start": {
+        "componentId": "power_supply_1787006340452_qwem2bv6d",
+        "pinName": "GND",
+        "x": 42.6953125,
+        "y": 134.74022674560547
+      },
+      "end": {
+        "componentId": "ssd1306_i2c_4pin_1787006332405_ofp0ad6nu",
+        "pinName": "GND",
+        "x": 71.5,
+        "y": 320
+      },
+      "color": "#808080",
+      "autoRouted": false
+    },
+    {
+      "waypoints": [
+        {
+          "x": 86.5,
+          "y": 111.74022674560547
+        }
+      ],
+      "id": "wire-1787006358657",
+      "start": {
+        "componentId": "power_supply_1787006340452_qwem2bv6d",
+        "pinName": "SIG",
+        "x": 42.6953125,
+        "y": 110.74022674560547
+      },
+      "end": {
+        "componentId": "ssd1306_i2c_4pin_1787006332405_ofp0ad6nu",
+        "pinName": "VCC",
+        "x": 86.5,
+        "y": 320
+      },
+      "color": "#cc0000",
+      "autoRouted": false
+    },
+    {
+      "waypoints": [
+        {
+          "x": 116.5,
+          "y": 231
+        }
+      ],
+      "id": "wire-1787006361703",
+      "start": {
+        "componentId": "xiao-esp32-s3",
+        "pinName": "D5",
+        "x": 194,
+        "y": 231
+      },
+      "end": {
+        "componentId": "ssd1306_i2c_4pin_1787006332405_ofp0ad6nu",
+        "pinName": "SDA",
+        "x": 116.5,
+        "y": 320
+      },
+      "color": "#22c55e",
+      "autoRouted": false
+    },
+    {
+      "waypoints": [
+        {
+          "x": 101.5,
+          "y": 244
+        }
+      ],
+      "id": "wire-1787006363587",
+      "start": {
+        "componentId": "xiao-esp32-s3",
+        "pinName": "D6",
+        "x": 194,
+        "y": 244
+      },
+      "end": {
+        "componentId": "ssd1306_i2c_4pin_1787006332405_ofp0ad6nu",
+        "pinName": "SCL",
+        "x": 101.5,
+        "y": 320
+      },
+      "color": "#22c55e",
+      "autoRouted": false
+    }
+  ],
+  "activeBoardId": "xiao-esp32-s3"
+}

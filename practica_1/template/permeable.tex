@@ -1,0 +1,138 @@
+\usepackage[english]{babel} % Sets the language and regional settings for English documents
+\usepackage[utf8]{inputenc} % Allows the use of UTF-8 characters in the document
+\usepackage[T1]{fontenc} % Specifies t\subsubsection*{Forma canónica reducida}
+\usepackage[margin=2cm]{geometry} % Sets the page margins
+\usepackage{makeidx} % Enables the creation of indexes
+% \usepackage{natbib} % Provides flexible bibliography support
+\usepackage{url} % Allows the use of URLs
+\usepackage{enumitem} % Customizes the appearance of lists
+\usepackage{listings} % Provides syntax highlighting for code listings
+\usepackage[dvipsnames]{xcolor} % Allows the use of colors
+\usepackage{parskip} % Modifies paragraph spacing
+\usepackage{graphicx} % Enables the inclusion of graphics
+\usepackage{tikz} % Allows the creation of graphics and diagrams
+\usepackage{float}
+\usepackage{hyperref} % Enables the creation of hyperlinks
+\usepackage{amsmath} % Provides additional math environments and commands
+\usepackage{amssymb} % Provides additional math symbols like \ltimes
+\usepackage{circuitikz} % Allows the creation of electrical circuits
+\usepackage{adjustbox} % Adjusts the size of the circuit diagrams
+\usepackage{tcolorbox}
+\usepackage{diagbox} % Allows the use of diagonal boxes in table cells
+\usepackage{colortbl} % Allows coloring of table cells
+\usepackage{fancyhdr} % Allows custom headers and footers
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=blue
+}
+\usepackage{breakurl} % permite que los links se rompan en varias líneas
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Configuración adicional para breaks en URLs
+\def\UrlBreaks{\do\/\do-\do_\do.\do=\do?\do\&}
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks\do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j\do\k\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t\do\u\do\v\do\w\do\x\do\y\do\z}
+
+%Uncomment the following lines to use a sans-serif font
+%\usepackage{helvet}
+%\renewcommand{\familydefault}{\sfdefault}
+
+\definecolor{mygray}{gray}{0.9}
+
+\usetikzlibrary{shapes.geometric, positioning, decorations.pathreplacing}
+
+\lstset{
+	language=SQL,
+	basicstyle=\ttfamily\small,
+	keywordstyle=\color{blue},
+	commentstyle=\color[rgb]{0,0.5,0},
+	stringstyle=\color{red},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	stepnumber=1,
+	numbersep=10pt,
+	backgroundcolor=\color{white},
+	showspaces=false,
+	showstringspaces=false,
+	breaklines=true,
+	frame=single,
+	tabsize=2, captionpos=b, lineskip=-1pt,
+	extendedchars=true,
+	literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{\textquestiondown}}1 {¡}{{\textexclamdown}}1
+}
+
+% VHDL language configuration
+\lstdefinelanguage{VHDL}{
+	morekeywords={entity, architecture, signal, port, in, out, inout, begin, end, process, if, then, else, elsif, case, when, others, for, while, loop, wait, library, use, std_logic, std_logic_vector, integer, boolean, rising_edge, falling_edge, component, generic, map, downto, to, and, or, not, xor, nand, nor, xnor},
+	morecomment=[l]{--},
+	morestring=[b]",
+	sensitive=false,
+	alsoletter={_}
+}
+
+% VHDL listings style
+\lstdefinestyle{vhdl}{
+	language=VHDL,
+	basicstyle=\ttfamily\small,
+	keywordstyle=\color{blue}\bfseries,
+	commentstyle=\color[rgb]{0,0.6,0}\itshape,
+	stringstyle=\color{red},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	stepnumber=1,
+	numbersep=10pt,
+	backgroundcolor=\color{white},
+	showspaces=false,
+	showstringspaces=false,
+	breaklines=true,
+	frame=single,
+	tabsize=2,
+	captionpos=b,
+	lineskip=-1pt,
+	extendedchars=true
+}
+
+\lstdefinestyle{cstyle}{
+	language=C,
+	basicstyle=\ttfamily\small,
+	keywordstyle=\color{blue}\bfseries,
+	commentstyle=\color[rgb]{0,0.5,0}\itshape,
+	stringstyle=\color{red},
+	directivestyle=\color{purple},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	stepnumber=1,
+	numbersep=10pt,
+	backgroundcolor=\color{white},
+	showspaces=false,
+	showstringspaces=false,
+	breaklines=true,
+	frame=single,
+	tabsize=4,
+	captionpos=b,
+	lineskip=-1pt,
+	extendedchars=true,
+	literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{\textquestiondown}}1 {¡}{{\textexclamdown}}1
+}
+
+
+
+\graphicspath{ {./img/} } % Sets the path for the graphics
+
+\newlist{biblio}{enumerate}{1}
+\setlist[biblio,1]{label=[\arabic*]}
+
+\makeindex
+
+% \tiny
+% \scriptsize
+% \footnotesize
+% \small
+% \normalsize (default size)
+% \large
+% \Large
+% \LARGE
+% \huge
+% \Huge
+

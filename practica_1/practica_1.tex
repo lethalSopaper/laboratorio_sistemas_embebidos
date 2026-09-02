@@ -1,0 +1,105 @@
+\documentclass[11pt, letterpaper]{article}
+
+\input{template/permeable.tex}
+
+\input{template/header.tex}
+
+\begin{document}
+
+% \input{template/title_page.tex}
+
+\subsubsection*{Ejercicio 2}
+
+\begin{minipage}{0.45\textwidth}
+\begin{adjustbox}{height=0.13\paperheight, width=1\textwidth}
+\begin{lstlisting}[style=cstyle, label={lst:ejercicio_2}]
+// 4. Una línea diagonal
+ssd1306_line(10, 50, 110, 10);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+// 5. Un rectángulo hueco
+ssd1306_rect(12, 12, 35, 15);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+// 6. Un rectángulo relleno (usando ssd1306_box)
+ssd1306_box(95, 20, 15, 35);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+// 7. Un círculo hueco
+ssd1306_circle(64, 32, 15);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+// 8. Un círculo relleno (usando ssd1306_disc)
+ssd1306_disc(30, 45, 15);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+// 9. Marco alrededor de todo
+ssd1306_rect(0, 0, 128, 64);
+ssd1306_flush();
+vTaskDelay(pdMS_TO_TICKS(500));
+\end{lstlisting}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.6\textwidth}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{e2.png}
+    \caption{Secuencia completa con todas las figuras.}
+    \label{fig:ejercicio_2}
+\end{figure}
+\end{minipage}
+
+
+\subsubsection*{Ejercicio 3}
+
+\begin{minipage}{0.45\textwidth}
+\begin{adjustbox}{height=0.15\paperheight, width=\textwidth}
+\begin{lstlisting}[style=cstyle, label={lst:ejercicio_3}]
+#include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+void app_main(void) {
+    ssd1306_init(5, 6);
+    float angulo = 0.0;
+    int centro_x = 64;
+    int centro_y = 32;
+    int radio = 31;
+    while(1)
+    {
+        ssd1306_clear();
+        int fin_x = centro_x + (int)(radio * cos(angulo));
+        int fin_y = centro_y + (int)(radio * sin(angulo));
+        ssd1306_line(centro_x, centro_y, fin_x, fin_y);
+        ssd1306_circle(centro_x, centro_y, radio);
+        ssd1306_flush();
+        angulo += 0.1;
+        if (angulo >= 2 * M_PI) {
+            angulo -= 2 * M_PI;
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+\end{lstlisting}
+\end{adjustbox}
+\end{minipage}
+\hfill
+\begin{minipage}{0.7\textwidth}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{e3_1.png}
+    \includegraphics[width=0.4\textwidth]{e3_2.png}
+    \includegraphics[width=0.4\textwidth]{e3_3.png}
+    \caption{Secuencia completa con todas las figuras.}
+    \label{fig:ejercicio_3}
+\end{figure}
+\end{minipage}
+
+\subsubsection*{Conclusión}
+
+Es una buena forma de aprender a utilizar el \texttt{ESP32} debido a que nos ayuda a entender el procedimiento real, a pesar de que el tiempo de simulación con respecto a los retardos puede ser impreciso ya que el simulador depende del procesador de la máquina host de este servicio, en mi caso si docker se sobre carga el tiempo de simulación puede ser afectado. Con respecto al código, la separación de funcionalidad es lo mejor debido a que estamos generalizando el display de figuras sin importar el display que se use, lo único que se cambiaría es el protocolo de comunicación, por otro lado, si se cambia el microcontrolador solo se deben llamar otras librerias para poder hacer el mismo tipo de comunicación I2C dentro de \texttt{ssd1306.c} dependiendo del microcontrolador que se use.
+
+% \input{template/biblio.tex}
+
+\end{document}
