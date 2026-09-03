@@ -23,7 +23,7 @@ Desarrollar un sistema embebido utilizando la tarjeta ESP32-S3 que integre la le
 
 \subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 1}
 
-Se llevó a cabo la implementación física del circuito esquemático sobre la protoboard. En la siguiente imagen se presenta el armado final, donde se ve la integración de la tarjeta de desarrollo ESP32-S3 con el potenciometro, el led y la pantalla OLED. Se puede observar la conexión del potenciómetro empleado para la lectura de la señal analógica, el cableado de la pantalla OLED hacia las terminales del bus I2C, y la configuración de la etapa de potencia conformada por el transistor MOSFET 2N7000, el cual se encarga de accionar el LED a partir de la señal PWM.
+Se llevó a cabo la implementación física del circuito esquemático sobre la protoboard. En la siguiente imagen se presenta el armado final, donde se ve la integración de la tarjeta de desarrollo ESP32-S3 con el potenciómetro, el led y la pantalla OLED. Se puede observar la conexión del potenciómetro empleado para la lectura de la señal analógica, el cableado de la pantalla OLED hacia las terminales del bus I2C, y la configuración de la etapa de potencia conformada por el transistor MOSFET 2N7000, el cual se encarga de accionar el LED a partir de la señal PWM.
 
 \begin{figure}[H]
     \centering
@@ -34,7 +34,40 @@ Se llevó a cabo la implementación física del circuito esquemático sobre la p
 
 \subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 2}
 
-Para el segundo ejercicio, se desarrolló el código encargado de adquirir los datos del convertidor analógico-digital (ADC) y generar la señal PWM correspondiente para el control de iluminación del LED. Adicionalmente, se implementó la interfaz gráfica en la pantalla OLED utilizando la librería u8g2. En la siguiente imagen se muestra el funcionamiento del programa, donde se aprecia el despliegue de los tres elementos requeridos, el valor directo del ADC en un rango de 0 a 4095, su equivalencia porcentual (de 0 a 100\%) y la representación gráfica dinámica que ilustra la lectura actual del potenciómetro.
+Para el segundo ejercicio, se desarrolló el código encargado de adquirir los datos del convertidor analógico-digital (ADC) y generar la señal PWM correspondiente para el control de iluminación del LED. Adicionalmente, se implementó la interfaz gráfica en la pantalla OLED utilizando la librería u8g2. En la siguiente imagen se muestra el funcionamiento del programa, donde se aprecia el despliegue de los tres elementos requeridos, el valor directo del ADC en un rango de 0 a 4095, su equivalencia porcentual (de 0 a 100\%) y la representación gráfica dinámica que ilustra la lectura actual del potenciómetro. Lo más relevante dentro del código:
+
+\begin{lstlisting}[style=cstyle, caption={Ciclo principal del programa.}, label={lst:main}]
+    void app_main(void)
+{
+    pantalla_iniciar();
+    adc_iniciar();
+    pwm_iniciar();
+
+    while (1)
+    {
+        int lectura = adc_leer();
+
+        pwm_actualizar(lectura);
+        pantalla_mostrar(lectura);
+
+        vTaskDelay(pdMS_TO_TICKS(PERIODO_MS));
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=cstyle, caption={Función para mostrar los datos en la pantalla OLED.}, label={lst:mostrar}]
+    int porcentaje = (lectura * 100) / ADC_MAX;
+    // ... (Configuración de texto)
+    snprintf(texto, sizeof(texto), "ADC: %04d | %3d%%", lectura, porcentaje);
+
+    // Dibujo de la barra de progreso
+    u8g2_DrawFrame(&u8g2, BARRA_X, BARRA_Y, BARRA_ANCHO, BARRA_ALTO);
+    if (porcentaje > 0) {
+        u8g2_DrawBox(&u8g2, BARRA_X, BARRA_Y, porcentaje, BARRA_ALTO);
+    }
+\end{lstlisting}
+
+Con este código obtenemos los siguientes resultados en la pantalla OLED, donde se puede observar el valor del ADC, su porcentaje equivalente y la barra de progreso que representa gráficamente la lectura actual del potenciómetro.
 
 \begin{figure}[H]
     \centering
@@ -47,7 +80,42 @@ Para el segundo ejercicio, se desarrolló el código encargado de adquirir los d
 
 \subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 3}
 
-Dado que el comportamiento visual y funcional del sistema se mantiene exactamente igual que en el Ejercicio 2, el enfoque de este apartado se centra exclusivamente en la reestructuración del código. A diferencia de la implementación anterior, el proyecto se dividió en tres archivos clave para mejorar su modularidad: un archivo de encabezado (\texttt{perifericos.h}) para las declaraciones y macros, un archivo de implementación (\texttt{perifericos.c}) con el cuerpo de las funciones, y el archivo principal (\texttt{main.c}) enfocado únicamente en la ejecución de la función principal.
+Dado que el comportamiento visual y funcional del sistema se mantiene exactamente igual que en el Ejercicio 2, el enfoque de este apartado se centra exclusivamente en la reestructuración del código. A diferencia de la implementación anterior, el proyecto se dividió en tres archivos clave para mejorar su modularidad: un archivo de encabezado (\texttt{perifericos.h}) para las declaraciones y macros, un archivo de implementación (\texttt{perifericos.c}) con el cuerpo de las funciones, y el archivo principal (\texttt{main.c}) enfocado únicamente en la ejecución de la función principal. De lo más relevante dentro del código tenemos \texttt{perifericos.h}, que destaca el uso de \texttt{\#pragma once} para evitar inclusiones múltiples y el uso de \texttt{extern} para compartir los handlers sin redefinirlos.
+
+\begin{lstlisting}[style=cstyle, caption={Archivo de encabezado \texttt{perifericos.h}.}, label={lst:perifericos_h}]
+#pragma once
+
+#include "u8g2.h"
+#include "esp_adc/adc_oneshot.h"
+
+// ... (Definición de constantes y macros)
+
+// Declaracion de handlers (extern)
+extern u8g2_t u8g2;
+extern adc_oneshot_unit_handle_t adc;
+
+// Prototipos de funciones
+void pantalla_iniciar(void);
+void pantalla_mostrar(int lectura);
+// ...
+\end{lstlisting}
+
+Y el archivo principal \texttt{main.c} que se centra en la función principal del programa, manteniendo la lógica de adquisición de datos y actualización de la pantalla.
+
+\begin{lstlisting}[style=cstyle, caption={Archivo principal \texttt{main.c}.}, label={lst:main_c}]
+#include "perifericos.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+void app_main(void)
+{
+    // La lógica de inicialización y el ciclo infinito
+    // se mantienen idénticos, pero el código ahora
+    // reside en perifericos.c
+// ...
+\end{lstlisting}
+
+Con esto obtenemos el mismo resultado visual y funcional que en el Ejercicio 2, pero con un código más organizado y modular, facilitando su mantenimiento y escalabilidad.
 
 \begin{figure}[H]
     \centering
@@ -69,7 +137,7 @@ Por otro lado, la temporización y las frecuencias de actualización juegan un p
     \item Si la frecuencia es excesivamente alta, la capacitancia parásita del MOSFET podría impedir una conmutación limpia, provocando distorsión en la señal o sobrecalentamiento del componente.
 \end{itemize}
 
-En cuanto a la interfaz gráfica, la velocidad de actualización de la pantalla podría optimizarse a nivel de hardware aumentando la frecuencia del reloj del bus I2C, a nivel de software, refrescando únicamente los elementos dinámicos, como la barra de progreso, en lugar de limpiar y reescribir todo el buffer del display en cada iteración.
+En cuanto a la interfaz gráfica, la velocidad de actualización de la pantalla podría optimizarse a nivel de hardware aumentando la frecuencia del reloj del bus I2C; y, a nivel de software, refrescando únicamente los elementos dinámicos, como la barra de progreso, en lugar de limpiar y reescribir todo el buffer del display en cada iteración.
 
 \section*{\centering \fontsize{14}{17}\sffamily\selectfont Conclusiones}
 
@@ -78,5 +146,8 @@ El desarrollo demuestra la versatilidad del sistema construido, ya que la arquit
 Finalmente, desde la perspectiva del desarrollo de software, el proyecto resalta la importancia de estructurar el código fuente de manera adecuada. Separar el programa utilizando un archivo de encabezado (\texttt{perifericos.h}) para las macros y declaraciones, junto con un archivo de implementación (\texttt{perifericos.c}) para la lógica de los controladores, otorga ventajas significativas frente a concentrar todo en el \texttt{main.c}. Esta modularización facilita la lectura y el mantenimiento del proyecto al ocultar los detalles de bajo nivel, además de permitir la reutilización de los componentes programados en futuros desarrollos de manera eficiente.
 
 % \input{template/biblio.tex}
+
+\newpage
+\textbf{NOTA: Si se desea consultar el código fuente completo del proyecto, se puede acceder al repositorio de GitHub en la siguiente dirección:} \url{https://github.com/lethalSopaper/laboratorio_sistemas_embebidos}
 
 \end{document}
