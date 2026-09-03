@@ -25,34 +25,38 @@ Desarrollar un sistema embebido utilizando la tarjeta ESP32-S3 que integre la le
 
 Se llevó a cabo la implementación física del circuito esquemático sobre la protoboard. En la siguiente imagen se presenta el armado final, donde se ve la integración de la tarjeta de desarrollo ESP32-S3 con el potenciometro, el led y la pantalla OLED. Se puede observar la conexión del potenciómetro empleado para la lectura de la señal analógica, el cableado de la pantalla OLED hacia las terminales del bus I2C, y la configuración de la etapa de potencia conformada por el transistor MOSFET 2N7000, el cual se encarga de accionar el LED a partir de la señal PWM.
 
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.9\textwidth]{e1_circuito.png}
-%     \caption{Circuito final implementado en la protoboard.}
-%     \label{fig:e1_circuito}
-% \end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{e1.jpg}
+    \caption{Circuito final implementado en la protoboard.}
+    \label{fig:e1_circuito}
+\end{figure}
 
 \subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 2}
 
 Para el segundo ejercicio, se desarrolló el código encargado de adquirir los datos del convertidor analógico-digital (ADC) y generar la señal PWM correspondiente para el control de iluminación del LED. Adicionalmente, se implementó la interfaz gráfica en la pantalla OLED utilizando la librería u8g2. En la siguiente imagen se muestra el funcionamiento del programa, donde se aprecia el despliegue de los tres elementos requeridos, el valor directo del ADC en un rango de 0 a 4095, su equivalencia porcentual (de 0 a 100\%) y la representación gráfica dinámica que ilustra la lectura actual del potenciómetro.
 
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.9\textwidth]{e2_circuito.png}
-%     \caption{Circuito funcionando en la protoboard.}
-%     \label{fig:e2_circuito}
-% \end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{e2_1.jpg}
+    \includegraphics[width=0.9\textwidth]{e2_2.jpg}
+    \includegraphics[width=0.9\textwidth]{e2_3.jpg}
+    \caption{Circuito funcionando en la protoboard.}
+    \label{fig:e2_circuito}
+\end{figure}
 
 \subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 3}
 
 Dado que el comportamiento visual y funcional del sistema se mantiene exactamente igual que en el Ejercicio 2, el enfoque de este apartado se centra exclusivamente en la reestructuración del código. A diferencia de la implementación anterior, el proyecto se dividió en tres archivos clave para mejorar su modularidad: un archivo de encabezado (\texttt{perifericos.h}) para las declaraciones y macros, un archivo de implementación (\texttt{perifericos.c}) con el cuerpo de las funciones, y el archivo principal (\texttt{main.c}) enfocado únicamente en la ejecución de la función principal.
 
-% \begin{figure}[H]
-%     \centering
-%     \includegraphics[width=0.9\textwidth]{e3_circuito.png}
-%     \caption{Circuito funcionando en la protoboard.}
-%     \label{fig:e3_circuito}
-% \end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{e3_1.jpg}
+    \includegraphics[width=0.8\textwidth]{e3_2.jpg}
+    \includegraphics[width=0.8\textwidth]{e3_3.jpg}
+    \caption{Circuito funcionando en la protoboard.}
+    \label{fig:e3_circuito}
+\end{figure}
 
 \section*{\centering \fontsize{14}{17}\sffamily\selectfont Análisis}
 
