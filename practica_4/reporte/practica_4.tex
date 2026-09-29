@@ -1,0 +1,169 @@
+\documentclass[12pt, letterpaper]{article}
+
+\input{template/preamble.tex}
+
+\input{template/listings_config.tex}
+
+% \input{template/header.tex}
+
+\begin{document}
+
+\input{template/title_page.tex}
+
+\input{template/calificacion.tex}
+\normalsize
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Comunicación inalámbrica: RF transparente (HC-12)}
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Objetivo}
+
+Establecer una comunicación inalámbrica por radiofrecuencia (RF transparente) empleando dos módulos HC-12, con el fin de demostrar que el microcontrolador XIAO ESP32-S3 puede transmitir y recibir datos de manera confiable empleando exactamente el mismo código utilizado en la práctica de comunicación alámbrica UART.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 1}
+
+Se llevó a cabo la implementación física del circuito esquemático sobre la protoboard. En la
+siguiente imagen se presenta el armado final, donde se ve la integración de la tarjeta de desarrollo XIAO ESP32-S3 conectada a uno de los módulos HC-12, y el otro módulo conectado a un convertidor TTL-USB a UART para la comunicación con la computadora. Se puede observar la conexión del módulo HC-12 al microcontrolador, así como el cableado del convertidor USB a UART hacia la computadora.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{e1.jpeg}
+    \caption{Circuito final implementado en la protoboard.}
+    \label{fig:e1_circuito}
+\end{figure}
+
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 2}
+
+Para el segundo ejercicio, se descargó el código fuente desde el proyecto ej\_uart el cual se encarga de establecer la comunicación serial. Es importante destacar que no fue necesario modificar ni una sola línea de código respecto al ejercicio de comunicación alámbrica, debido a que el enlace de radiofrecuencia con los módulos HC-12 opera de manera transparente.
+
+La comunicación se lleva a cabo mediante la configuración del periférico UART de la ESP32-S3[cite: 7]. Primero, se inicializan los parámetros de comunicación a 9600 baudios, 8 bits de datos, sin paridad y un bit de parada[cite: 7]. Los pines asignados para esta tarea son el GPIO43 para transmisión (TX) y el GPIO44 para recepción (RX)[cite: 7].
+
+\begin{lstlisting}[style=cstyle, caption={Configuración del puerto UART}, label={lst:configuracion}]
+void uart_configurar(void)
+{
+    uart_config_t configuracion = {
+        .baud_rate = UART_BAUD,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+    uart_param_config(UART_PUERTO, &configuracion);
+    uart_set_pin(UART_PUERTO, PIN_TX, PIN_RX,
+        UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_driver_install(UART_PUERTO, 256, 256, 0, NULL, 0);
+}
+\end{lstlisting}
+
+En cuanto a la transmisión, el microcontrolador calcula periódicamente un valor correspondiente a una onda senoidal, escalado entre 0 y 255. Este byte se envía a través del puerto utilizando la función \texttt{uart\_write\_bytes}. A esta función se le pasa la dirección de memoria de la variable (\texttt{\&valor\_enviado}) dado que está diseñada de forma genérica para mandar bloques de datos mediante punteros.
+
+\begin{lstlisting}[style=cstyle, caption={Transmisión de datos (Tx)}, label={lst:transmision}]
+    // ejemplo 1: onda senoidal, un byte (0-255)
+    uint8_t valor_enviado = (uint8_t)(127 + 127 * sin(angulo));
+    uart_write_bytes(UART_PUERTO, &valor_enviado, 1);
+    angulo += 0.2;
+    if (angulo > DOS_PI) {
+        angulo = 0;
+    }
+\end{lstlisting}
+
+Simultáneamente, la ESP32-S3 se mantiene a la escucha de datos entrantes en el bus serial. Mediante la función \texttt{uart\_read\_bytes}, se lee el buffer de recepción y la función emplea el puntero \texttt{\&valor\_recibido} para escribir el dato entrante directamente en esa dirección de memoria. Si el programa detecta que el byte recibido equivale a 128 (\texttt{VALOR\_PRENDE}), el LED integrado de la tarjeta XIAO se enciende; con cualquier otro valor, se mantiene apagado. Este proceso se repite en un ciclo infinito con retardos de 500 milisegundos[cite: 7].
+
+\begin{lstlisting}[style=cstyle, caption={Recepción de datos y control de actuador (Rx)}, label={lst:recepcion}]
+    // recibir: prender o apagar el LED
+    uint8_t valor_recibido;
+    int bytes_leidos =
+        uart_read_bytes(UART_PUERTO, &valor_recibido, 1, 0);
+    if (bytes_leidos > 0) {
+        if (valor_recibido == VALOR_PRENDE) {
+            gpio_set_level(PIN_LED, LED_PRENDIDO);
+        } else {
+            gpio_set_level(PIN_LED, LED_APAGADO);
+        }
+    }
+    vTaskDelay(pdMS_TO_TICKS(500)); // periodo: 500 ms
+\end{lstlisting}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 3}
+
+Antes de validar el funcionamiento, es importante tener en cuenta que en sistemas operativos como linux, los archivos de dispositivos seriales (como \texttt{/dev/ttyACM0} o \texttt{/dev/ttyUSB0} utilizados por el convertidor TTL-USB o la tarjeta ESP32) son son propietarios de el usuario root y de un grupo llamado \texttt{dialout}. Por lo tanto, para no tener problemas de permisos al abrir el puerto serial, es necesario agregar a nuestro usuario al grupo \texttt{dialout} mediante el comando \texttt{sudo usermod -a -G dialout \$USER} y posteriormente cerrar sesión y volver a iniciar. Con este cambio, la aplicación SerialTest puede abrir el puerto serial sin que ocurra algun error en el acceso.
+
+Para comprobar el funcionamiento del sistema, se instalo el software de SerialTest para monitorear la comunicación entre la computadora y el módulo HC-12 conectado a la ESP32-S3. Para ello, desde la aplicación SerialTest, se seleccionó el puerto /dev/ttyUSB0 correspondiente al convertidor USB a UART y se seleccionó la opción de open para configurar la comunicación a 9600 baudios, 8 bits de datos, sin paridad y un bit de parada.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{e3_1.png}
+    \caption{Configuración de la comunicación serial en la aplicación SerialTest.}
+    \label{fig:e3_circuito}
+\end{figure}
+
+Una vez configurado el puerto serial, se abre la ventana de DATA para visualizar los datos que se estan recibiendo desde la ESP32-S3. En la siguiente imagen se puede observar que el valor recibido es una onda senoidal que oscila entre 0 y 255, tal como se esperaba. Además, al enviar un valor de 128 desde la ESP32-S3, el LED integrado de la tarjeta XIAO se enciende, confirmando que la comunicación bidireccional funciona correctamente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{e3_2.jpeg}
+    \includegraphics[width=0.8\textwidth]{e3_3.png}
+    \caption{Verificación del encendido del LED integrado de la tarjeta XIAO ESP32-S3 al recibir el valor 128 desde la computadora.}
+    \label{fig:e3_verificacion}
+\end{figure}
+
+Como puede observarse en la captura de pantalla de la aplicación SerialTest, la comunicación inalámbrica mediante los módulos HC-12 funciona correctamente, permitiendo la transmisión y recepción de datos entre la computadora y la tarjeta XIAO ESP32-S3. Ya que al enviar el valor de 128 (80 en hexadecimal) desde la ESP32-S3, el LED integrado de la tarjeta se enciende. Por ota parte, al enviar cualquier otro valor, el LED se mantiene apagado, confirmando que la comunicación bidireccional es estable y confiable.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{e3_5.jpeg}
+    \includegraphics[width=0.8\textwidth]{e3_6.png}
+    \caption{Verificación del apagado del LED integrado de la tarjeta XIAO ESP32-S3 al recibir un valor diferente a 128 desde la computadora.}
+    \label{fig:e3_apagado}
+\end{figure}
+
+Para comprobar que la recepción de datos ocurre cada 500 milisegundos, se seleccionó la opción de "Timestamp" en la ventana de DATA de la aplicación SerialTest. Esto permite visualizar la hora exacta en que se reciben los datos, confirmando que la comunicación es periódica y estable.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{e3_4.png}
+    \caption{Verificación de la periodicidad de la recepción de datos cada 500 ms.}
+    \label{fig:e3_periodicidad}
+\end{figure}
+
+Finalmente, para probar el alcance de la comunicación inalámbrica, se realizó una prueba de distancia entre los dos HC-12. Para ello, se colocaron en diferentes habitaciones de la casa.
+
+\begin{figure}[H]
+    \centering
+    % Foto de la computadora (arriba)
+    \includegraphics[width=0.3\textwidth]{e3_7.jpeg} \\[1em] % El \\ hace el salto de línea y [1em] agrega separación vertical
+    
+    % Fotos de los celulares (abajo)
+    \includegraphics[width=0.25\textwidth]{e3_8.jpeg} \hspace{0.5cm} % \hspace agrega separación horizontal entre fotos
+    \includegraphics[width=0.25\textwidth]{e3_9.jpeg}
+    
+    \caption{Prueba de alcance de la comunicación inalámbrica entre los módulos HC-12 en diferentes habitaciones.}
+    \label{fig:e3_alcance}
+\end{figure}
+
+Como puede verse a pesar de encontrarse alejadas un aproximado de 8 metros y con paredes de por medio, la comunicación entre los módulos HC-12 se mantiene estable y confiable, pues al enviar el valor de encendido (128) el cambio resultaba inmediato en el LED integrado de la tarjeta XIAO ESP32-S3, confirmando que la comunicación bidireccional funciona correctamente incluso a esa distancia y con obstáculos.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Análisis}
+
+Como se documentó en el Ejercicio 2, el aspecto más destacable de esta implementación es que no se tuvo que modificar ni una sola línea del código fuente de la ESP32-S3 en comparación con la implementación alámbrica. Esto se justifica debido a que los módulos HC-12 operan en lo que se conoce como modo transparente. Para el microcontrolador, conectarse a los pines RX y TX del HC-12 es completamente indistinguible de estar conectado a un cable UART tradicional; toda la modulación, empaquetado y transmisión de radiofrecuencia es gestionada internamente por el hardware del módulo.
+
+En las pruebas físicas, se comprobó que la comunicación seguía siendo confiable incluso a una distancia aproximada de 8 metros y con paredes de por medio. Esta fiabilidad frente a obstáculos es característica de los transceptores sub-GHz (banda de 433 MHz típica de los HC-12), cuyas ondas electromagnéticas tienen una gran capacidad de penetración en interiores, superando en este aspecto a tecnologías de mayor frecuencia como el Wi-Fi.
+
+Para que este enlace funcione, es un requisito absoluto que ambos módulos se encuentren en el mismo canal de frecuencia y velocidad. Si los HC-12 quedaran configurados en canales distintos, la comunicación fallaría por completo, ya que un módulo estaría transmitiendo en una frecuencia que el otro no está escuchando. Afortunadamente, estos módulos vienen configurados de fábrica para operar en el mismo canal predeterminado. Si en un entorno con interferencias se necesitara cambiar el canal, bastaría con poner en estado bajo (GND) el pin SET, lo que saca al módulo del modo transparente y lo entra al modo de comandos AT. Una vez en este modo, se envía el comando \texttt{AT+Cxxx} (donde \texttt{xxx} es el número del canal, por ejemplo, \texttt{AT+C005}) para reconfigurarlo.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Conclusiones}
+
+La transición de una comunicación alámbrica a una inalámbrica presenta ventajas evidentes, siendo la principal la eliminación de las barreras físicas. Esto permite una total movilidad del prototipo y facilita el aislamiento eléctrico entre la etapa de control (PC) y el sistema integrado (microcontrolador). Sin embargo, también conlleva desventajas frente al UART tradicional: el medio inalámbrico es susceptible a interferencias electromagnéticas externas, el alcance está limitado por el entorno físico, y se requiere circuitería y alimentación adicional en el extremo remoto para hacer funcionar el módulo de radio.
+
+A nivel de seguridad, la comunicación implementada presenta una vulnerabilidad crítica: los datos viajan "en texto claro" a través de un medio público y compartido. Dado que el sistema solo verifica si el valor recibido es 128 para encender el actuador (LED)[cite: 12, 13], cualquier persona dentro del rango de cobertura que tenga un módulo en el mismo canal podría realizar un ataque de inyección de datos para encender o apagar el dispositivo sin autorización, o bien, interceptar pasivamente la información que transmite el microcontrolador.
+
+Para reducir estos riesgos sin perder la utilidad del enlace de RF transparente, es imperativo implementar seguridad a nivel de software. Esto se lograría aplicando algoritmos de cifrado a los bytes antes de mandarlos por la función \texttt{uart\_write\_bytes}[cite: 12, 13] y descifrándolos al recibirlos, o bien, diseñando un protocolo de tramas que incluya una dirección lógica del destinatario y sumas de verificación (checksums) para descartar comandos de emisores no válidos.
+
+% \input{template/biblio.tex}
+
+\newpage
+\textbf{NOTA: Si se desea consultar el código fuente completo del proyecto, se puede acceder al repositorio de GitHub en la siguiente dirección:} \url{https://github.com/lethalSopaper/laboratorio_sistemas_embebidos}
+
+\end{document}
