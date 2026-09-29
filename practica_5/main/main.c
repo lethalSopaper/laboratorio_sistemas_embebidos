@@ -21,8 +21,14 @@ extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
 #define I2C_MASTER_SDA_IO           7
 #define I2C_MASTER_NUM              I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ          400000
-#define WIFI_SSID "TP-Link_F271"
-#define WIFI_PASS "036A410E"
+
+#define WIFI_MODE_SELECTION 1
+
+#define WIFI_SSID ".:PC Puma FI:."
+#define WIFI_PASS ""
+
+#define AP_SSID "ESP32-S3-AccessPoint"
+#define AP_PASS "12345678"
 
 static i2c_cmd_handle_t handle_i2c;
 u8g2_t u8g2;
@@ -108,7 +114,7 @@ httpd_handle_t iniciar_servidor_web(void) {
 
     if (httpd_start(&server, &config) == ESP_OK) {
         servidor_global = server; // Guardamos el servidor para la tarea del ADC
-        
+
         httpd_uri_t ruta_raiz = { .uri = "/", .method = HTTP_GET, .handler = manejador_raiz_get, .user_ctx = NULL };
         httpd_register_uri_handler(server, &ruta_raiz);
 
@@ -122,30 +128,30 @@ httpd_handle_t iniciar_servidor_web(void) {
 void tarea_adc(void *pvParameter) {
     int adc_raw = 0;
     char buffer_adc[16];
-    
+
     httpd_ws_frame_t ws_pkt;
     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
     ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
     while (1) {
         if (servidor_global != NULL) {
-            // Leer el potenciómetro en ADC1 Canal 5
-            adc_oneshot_read(adc1_handle, ADC_CHANNEL_5, &adc_raw);
-            snprintf(buffer_adc, sizeof(buffer_adc), "%d", adc_raw);
-
-            ws_pkt.payload = (uint8_t *)buffer_adc;
-            ws_pkt.len = strlen(buffer_adc);
-
-            // Enviar a los navegadores conectados
+            // Comprobar cuántos clientes están conectados antes de enviar
             size_t max_clientes = 4;
             int fds[4];
-            if (httpd_get_client_list(servidor_global, &max_clientes, fds) == ESP_OK) {
-                for (int i = 0; i < max_clientes; i++) {
+            if (httpd_get_client_list(servidor_global, &max_clientes, fds) == ESP_OK && max_clientes > 0) {
+                // Leer el potenciómetro solo si hay alguien escuchando
+                adc_oneshot_read(adc1_handle, ADC_CHANNEL_5, &adc_raw);
+                snprintf(buffer_adc, sizeof(buffer_adc), "%d", adc_raw);
+
+                ws_pkt.payload = (uint8_t *)buffer_adc;
+                ws_pkt.len = strlen(buffer_adc);
+
+                for (size_t i = 0; i < max_clientes; i++) {
                     httpd_ws_send_frame_async(servidor_global, fds[i], &ws_pkt);
                 }
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(500)); // Enviar cada medio segundo
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -154,6 +160,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Esperar 1 segundo antes de reintentar
         esp_wifi_connect();
         printf("Reintentando conexión WiFi...\n");
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
@@ -165,14 +172,47 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
 void inicializar_wifi(void) {
     esp_netif_init();
     esp_event_loop_create_default();
+
+#if WIFI_MODE_SELECTION == 0
+    // --- MODO ESTACIÓN (STA) ---
     esp_netif_create_default_wifi_sta();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     esp_wifi_init(&cfg);
+
     esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL);
     esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL, NULL);
-    wifi_config_t wifi_config = { .sta = { .ssid = WIFI_SSID, .password = WIFI_PASS, }, };
+
+    wifi_config_t wifi_config = {
+        .sta = {
+            .ssid = WIFI_SSID,
+            .password = WIFI_PASS,
+        },
+    };
     esp_wifi_set_mode(WIFI_MODE_STA);
     esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+
+#else
+    // --- MODO PUNTO DE ACCESO (AP) ---
+    esp_netif_create_default_wifi_ap();
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
+
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = AP_SSID,
+            .ssid_len = strlen(AP_SSID),
+            .password = AP_PASS,
+            .max_connection = 4,
+            .authmode = WIFI_AUTH_WPA2_PSK,
+        },
+    };
+
+    esp_wifi_set_mode(WIFI_MODE_AP);
+    esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+    
+    printf("¡Punto de Acceso creado! Conéctate a la red: %s y abre http://192.168.4.1\n", AP_SSID);
+#endif
+
     esp_wifi_start();
 }
 
