@@ -27,7 +27,7 @@ extern const uint8_t index_html_end[]   asm("_binary_index_html_end");
 #define WIFI_SSID ".:PC Puma FI:."
 #define WIFI_PASS ""
 
-#define AP_SSID "ESP32-S3-AccessPoint"
+#define AP_SSID "ESP32-S3"
 #define AP_PASS "12345678"
 
 static i2c_cmd_handle_t handle_i2c;
@@ -36,6 +36,30 @@ u8g2_t u8g2;
 // Variables globales para el servidor y el potenciómetro
 httpd_handle_t servidor_global = NULL;
 adc_oneshot_unit_handle_t adc1_handle;
+static char texto_oled[64] = "Esperando mensaje";
+static int adc_oled = 0;
+
+static void actualizar_oled(void) {
+    char texto_adc[16];
+
+    snprintf(texto_adc, sizeof(texto_adc), "POT: %d", adc_oled);
+    u8g2_ClearBuffer(&u8g2);
+    u8g2_SetFont(&u8g2, u8g2_font_6x10_tr);
+    u8g2_DrawStr(&u8g2, 0, 12, "PRACTICA 5");
+    u8g2_DrawStr(&u8g2, 0, 30, texto_oled);
+    u8g2_DrawStr(&u8g2, 0, 48, texto_adc);
+    u8g2_SendBuffer(&u8g2);
+}
+
+static void mostrar_texto_oled(const char *texto) {
+    snprintf(texto_oled, sizeof(texto_oled), "%s", texto);
+    actualizar_oled();
+}
+
+static void mostrar_adc_oled(int adc_raw) {
+    adc_oled = adc_raw;
+    actualizar_oled();
+}
 
 // --- PUENTES DE U8G2 ---
 uint8_t u8x8_byte_esp32_i2c(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr) {
@@ -98,10 +122,7 @@ esp_err_t manejador_ws(httpd_req_t *req) {
         ws_pkt.payload = buf;
         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
         if (ret == ESP_OK) {
-            u8g2_ClearBuffer(&u8g2);
-            u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
-            u8g2_DrawStr(&u8g2, 0, 20, (char *)buf);
-            u8g2_SendBuffer(&u8g2);
+            mostrar_texto_oled((char *)buf);
         }
         free(buf);
     }
@@ -142,6 +163,7 @@ void tarea_adc(void *pvParameter) {
                 // Leer el potenciómetro solo si hay alguien escuchando
                 adc_oneshot_read(adc1_handle, ADC_CHANNEL_5, &adc_raw);
                 snprintf(buffer_adc, sizeof(buffer_adc), "%d", adc_raw);
+                mostrar_adc_oled(adc_raw);
 
                 ws_pkt.payload = (uint8_t *)buffer_adc;
                 ws_pkt.len = strlen(buffer_adc);
@@ -239,10 +261,7 @@ void app_main(void) {
     u8g2_InitDisplay(&u8g2);
     u8g2_SetPowerSave(&u8g2, 0);
 
-    u8g2_ClearBuffer(&u8g2);
-    u8g2_SetFont(&u8g2, u8g2_font_ncenB08_tr);
-    u8g2_DrawStr(&u8g2, 0, 20, "Conectando WiFi...");
-    u8g2_SendBuffer(&u8g2);
+    mostrar_texto_oled("Conectando WiFi...");
 
     // 3. Inicializar el Potenciómetro en GPIO 6 (ADC1 Canal 5)
     adc_oneshot_unit_init_cfg_t init_config1 = { .unit_id = ADC_UNIT_1 };
@@ -258,9 +277,7 @@ void app_main(void) {
     iniciar_servidor_web();
     xTaskCreate(tarea_adc, "tarea_adc", 4096, NULL, 5, NULL);
 
-    u8g2_ClearBuffer(&u8g2);
-    u8g2_DrawStr(&u8g2, 0, 20, "Servidor Activo!");
-    u8g2_SendBuffer(&u8g2);
+    mostrar_texto_oled("Servidor Activo!");
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
