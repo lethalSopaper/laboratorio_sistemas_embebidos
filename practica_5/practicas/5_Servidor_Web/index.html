@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Servidor Web</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f4;}
+        .card { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1);}
+        input[type="text"] { padding: 10px; width: 200px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;}
+        button:hover { background-color: #218838; }
+        h1 { color: #333; }
+        #adcValue { font-size: 2em; font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Lectura del Potenciómetro</h1>
+        <p>Valor ADC (0-4095): <span id="adcValue">--</span></p>
+
+        <hr style="margin: 20px 0;">
+
+        <h2>Enviar mensaje a la OLED</h2>
+        <input type="text" id="mensajeInput" placeholder="Escribe un mensaje...">
+        <button onclick="enviarMensaje()">Enviar</button>
+    </div>
+
+    <script>
+        // Iniciar conexión WebSocket
+        var ws = new WebSocket('ws://' + location.host + '/ws');
+
+        ws.onopen = function() {
+            console.log("WebSocket Conectado");
+        };
+
+        // Recibir datos del ESP32 (Push del ADC)
+        ws.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            document.getElementById('adcValue').innerText = data.adc;
+        };
+
+        ws.onclose = function() {
+            console.log("WebSocket Desconectado");
+        };
+
+        // Enviar mensaje de texto desde la página hacia el ESP32
+        function enviarMensaje() {
+            var input = document.getElementById('mensajeInput');
+            var mensaje = input.value;
+            
+            if (mensaje.length > 0 && ws.readyState === WebSocket.OPEN) {
+                ws.send(mensaje);
+                input.value = ''; // Limpiar caja
+            } else {
+                alert("La conexión WebSocket no está abierta o el mensaje está vacío.");
+            }
+        }
+    </script>
+</body>
+</html>
