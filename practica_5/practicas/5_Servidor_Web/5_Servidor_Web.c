@@ -31,7 +31,7 @@
 
 static const char *TAG = "practica5";
 static volatile int s_adc_valor = 0;
-static httpd_handle_t s_servidor = NULL; 
+static httpd_handle_t s_servidor = NULL;
 
 // Símbolos del HTML embebido
 extern const char index_html_inicio[] asm("_binary_index_html_start");
