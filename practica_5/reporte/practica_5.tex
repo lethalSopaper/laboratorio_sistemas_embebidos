@@ -13,14 +13,268 @@
 \input{template/calificacion.tex}
 \normalsize
 
-\section*{\centering \fontsize{14}{17}\sffamily\selectfont Título de la Práctica}
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Servidor web en el ESP32}
 
-\section*{\centering \fontsize{14}{17}\sffamily\selectfont Objetivo}
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Objetivos}
 
-\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados y Anaĺisis}
+El objetivo de esta práctica fue implementar un servidor web sobre la tarjeta
+XIAO ESP32-S3 para supervisar remotamente, mediante una conexión WiFi, la
+lectura de un potenciómetro y enviar mensajes a una pantalla OLED. Para ello se
+integraron la lectura analógica mediante el ADC1, la comunicación inalámbrica
+WiFi en modo punto de acceso (AP) y una comunicación bidireccional mediante
+WebSocket. También se consideró que el sistema puede operar en modo estación
+(STA), conectándose a una red WiFi existente.
+
+También se buscó comprender la diferencia entre una petición HTTP convencional
+y una conexión persistente WebSocket. La página se entrega inicialmente
+mediante HTTP y, una vez cargada, recibe automáticamente las mediciones del ADC
+por la ruta \texttt{/ws}; de forma inversa, el texto escrito en el navegador se
+transmite por esa misma conexión para visualizarse en la OLED.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados y análisis}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 1: Circuito}
+
+Se armó el circuito con un potenciómetro y una pantalla OLED conectada al bus
+I2C de la tarjeta. El potenciómetro se conectó al pin D5, correspondiente al
+GPIO 6 y al canal 5 del ADC1. La pantalla utilizó D8 (GPIO 7) como SDA y D7
+(GPIO 44) como SCL. En el programa se configuró el ADC con una resolución de 12
+bits, por lo que las lecturas se encuentran en el intervalo de 0 a 4095.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.35\textwidth]{esp_01.jpg}
+    \caption{Circuito implementado y pantalla OLED con el servidor activo.}
+    \label{fig:circuito}
+\end{figure}
+
+La pantalla OLED se controló mediante la biblioteca U8g2 y una implementación
+de las funciones de transferencia I2C. Esto permitió actualizar en la misma
+pantalla el estado del servidor, el mensaje recibido y el valor actual del
+potenciómetro.
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Ejercicio 2: Funcionamiento del sistema}
+
+La implementación inalámbrica se realizó por ambos métodos mediante WiFi y modo
+de red AP (punto de acceso). Por cuestiones de facilidad de configuración y
+estabilidad durante las pruebas, el ESP32 creó la red \texttt{ESP32-S3} con la
+contraseña \texttt{12345678}, mientras que el navegador se conectó directamente
+a la dirección \texttt{192.168.4.1}. Esta alternativa permitió realizar la
+práctica sin depender de un router externo. La evidencia de la terminal
+confirma la creación del punto de acceso y la dirección que debe abrirse en el
+navegador.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{ap_ip.png}
+    \caption{Creación del punto de acceso y dirección IP del ESP32.}
+    \label{fig:ap_ip}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{connection.png}
+    \caption{Conexión de la computadora a la red inalámbrica del ESP32.}
+    \label{fig:connection}
+\end{figure}
+
+La modalidad de conexión se selecciona en el código mediante la constante
+\texttt{WIFI\_MODE\_SELECTION}. El valor cero selecciona el modo estación
+(STA), mientras que un valor diferente de cero selecciona el modo punto de
+acceso (AP). De esta forma, ambas configuraciones utilizan el mismo servidor
+web y solo cambia la forma en que se establece la red WiFi.
+
+\begin{lstlisting}[style=cstyle, caption={Selección entre WiFi STA y punto de acceso AP}, label={lst:seleccion-wifi}]
+#define WIFI_MODE_SELECTION 1
+
+#if WIFI_MODE_SELECTION == 0
+    // Modo estacion: conectarse a una red WiFi existente
+#else
+    // Modo AP: crear una red WiFi propia
+#endif
+\end{lstlisting}
+
+Cuando se selecciona STA, el ESP32 crea una interfaz de estación, registra los
+eventos de WiFi y configura el SSID y la contraseña del router. Después de
+iniciar el periférico, el evento \texttt{WIFI\_EVENT\_STA\_START} solicita la
+conexión y, al recibirse \texttt{IP\_EVENT\_STA\_GOT\_IP}, se imprime la
+dirección asignada por el router. El navegador debe conectarse a esa misma red
+y abrir dicha dirección.
+
+\begin{lstlisting}[style=cstyle, caption={Configuración de la conexión WiFi en modo STA}, label={lst:wifi-sta}]
+esp_netif_create_default_wifi_sta();
+wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+esp_wifi_init(&cfg);
+
+wifi_config_t wifi_config = {
+    .sta = {
+        .ssid = WIFI_SSID,
+        .password = WIFI_PASS,
+    },
+};
+
+esp_wifi_set_mode(WIFI_MODE_STA);
+esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+esp_wifi_start();
+\end{lstlisting}
+
+En modo AP, el ESP32 crea su propia red inalámbrica en lugar de buscar un
+router. Se configura el nombre de la red, la contraseña, el número máximo de
+clientes y el método de autenticación. Al iniciar WiFi, la interfaz utiliza la
+dirección predeterminada \texttt{192.168.4.1}; por ello el navegador se conecta
+a la red \texttt{ESP32-S3} y solicita la página mediante esa dirección.
+
+\begin{lstlisting}[style=cstyle, caption={Configuración del punto de acceso WiFi}, label={lst:wifi-ap}]
+esp_netif_create_default_wifi_ap();
+wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+esp_wifi_init(&cfg);
+
+wifi_config_t wifi_config = {
+    .ap = {
+        .ssid = AP_SSID,
+        .ssid_len = strlen(AP_SSID),
+        .password = AP_PASS,
+        .max_connection = 4,
+        .authmode = WIFI_AUTH_WPA2_PSK,
+    },
+};
+
+esp_wifi_set_mode(WIFI_MODE_AP);
+esp_wifi_set_config(WIFI_IF_AP, &wifi_config);
+esp_wifi_start();
+\end{lstlisting}
+
+En modo AP, la función de inicialización configura el nombre de la red, la
+contraseña y el número máximo de clientes. Si se utilizara el modo STA, sería
+necesario crear una interfaz de estación, indicar el SSID y la contraseña del
+router, esperar el evento de obtención de IP y abrir en el navegador la
+dirección asignada por dicho router. El resto del servidor HTTP y de la página
+podría conservarse prácticamente sin cambios.
+
+\textbf{Análisis de la conexión WiFi.} La selección de AP fue importante porque permitió crear una red autónoma, fácil de configurar y estable durante las pruebas. En una aplicación conectada a una infraestructura existente, STA sería más conveniente porque permitiría que el ESP32 y otros dispositivos compartieran la red del router.
+
+El servidor atiende dos rutas. La ruta \texttt{/} devuelve la página HTML
+embebida en el firmware con tipo \texttt{text/html}. La ruta \texttt{/ws} se
+registra como WebSocket y permite la comunicación en ambos sentidos. La página
+abre la conexión con:
+
+\begin{lstlisting}[style=cstyle, caption={Apertura de la conexión WebSocket en el navegador}, label={lst:websocket-js}]
+var ws = new WebSocket('ws://' + location.host + '/ws');
+
+ws.onmessage = function(event) {
+	document.getElementById('adc_val').innerText = event.data;
+};
+
+function enviarMensaje() {
+	var msg = document.getElementById('mensaje').value;
+	if (ws.readyState === WebSocket.OPEN) {
+		ws.send(msg);
+	}
+}
+\end{lstlisting}
+
+La tarea \texttt{tarea\_adc} realiza una lectura cada 500 ms. Cuando existe un
+cliente conectado, obtiene el valor del ADC, actualiza la OLED y envía el valor
+como una trama de texto mediante WebSocket. El periodo elegido permite observar
+cambios del potenciómetro sin generar una cantidad excesiva de tráfico. Si se
+redujera demasiado, aumentarían la frecuencia de ejecución de la tarea, el
+tráfico TCP y el trabajo de actualización del navegador; con varios
+dispositivos conectados, el mismo dato tendría que enviarse a cada cliente.
+
+\begin{lstlisting}[style=cstyle, caption={Lectura periódica y envío del valor del ADC}, label={lst:adc-websocket}]
+adc_oneshot_read(adc1_handle, ADC_CHANNEL_5, &adc_raw);
+snprintf(buffer_adc, sizeof(buffer_adc), "%d", adc_raw);
+mostrar_adc_oled(adc_raw);
+ws_pkt.payload = (uint8_t *)buffer_adc;
+ws_pkt.len = strlen(buffer_adc);
+httpd_ws_send_frame_async(servidor_global, fds[i], &ws_pkt);
+vTaskDelay(pdMS_TO_TICKS(500));
+\end{lstlisting}
+
+\textbf{Análisis de la lectura del ADC.} El envío periódico por WebSocket es importante porque el ESP32 empuja la medición sin que el navegador tenga que realizar solicitudes repetitivas. El periodo de 500 ms ofrece una actualización suficientemente rápida para observar el potenciómetro y, al mismo tiempo, limita el tráfico y el consumo de recursos. Con varios clientes, la lectura debe enviarse a cada conexión, por lo que aumentar demasiado la frecuencia elevaría la carga del servidor.
+
+En la siguiente imagen se muestra el como se inicializa la página web una vez
+es ingresada la dirección del ESP32 en el navegador. La pantalla OLED indica
+que el servidor está activo y listo para recibir mensajes. En ete caso indica
+el valor 0 por que se dejó en el valor mínimo para la evidencia.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{web_01.png}
+        \caption{Página web al iniciar.}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{esp_01.jpg}
+        \caption{OLED asociada.}
+    \end{subfigure}
+    \caption{Conexión inicial y servidor activo.}
+    \label{fig:pareja01}
+\end{figure}
+
+En la siguiente figura se muestra la actualización de la lectura del
+potenciómetro. La página web muestra el valor 3359 y la pantalla OLED muestra
+el valor 3347, esto debido a que la lectura del ADC se realiza cada 500 ms y
+puede variar ligeramente entre una lectura y otra. Cabe destacar que hasta este
+momento aún no se ha enviado ningún mensaje desde la página web, por lo que la
+OLED solo muestra el valor del potenciómetro.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{web_02.png}
+        \caption{Lectura mostrada: 3359.}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{esp_02.jpg}
+        \caption{Lectura en la OLED: 3347.}
+    \end{subfigure}
+    \caption{Actualización de la lectura del potenciómetro.}
+    \label{fig:pareja02}
+\end{figure}
+
+Finalmente, en la siguiente figura se muestra la página web con el mensaje
+\texttt{prueba1} escrito en el campo de texto y la pantalla OLED mostrando el
+mismo mensaje junto con la lectura del potenciómetro. Esto demuestra que la
+comunicación bidireccional mediante WebSocket funciona correctamente,
+permitiendo enviar mensajes desde el navegador al ESP32 y viceversa.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.55\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{web_03.png}
+        \caption{Mensaje escrito en la página: prueba1.}
+    \end{subfigure}\hfill
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{esp_03.jpg}
+        \caption{Mensaje mostrado en la OLED junto con la lectura del potenciómetro.}
+    \end{subfigure}
+    \caption{Envío de mensaje desde el navegador al ESP32 mediante WebSocket.}
+    \label{fig:pareja03}
+\end{figure}
+
+\textbf{Análisis del envío de mensajes.} La recepción de tramas de longitud desconocida y la reserva de \texttt{len + 1} bytes son importantes para evitar desbordamientos y garantizar que el texto sea una cadena C válida. La conexión WebSocket también permite que la página envíe datos al ESP32 sin abrir otra solicitud HTTP. Como la página usa UTF-8, los acentos y la letra ñ llegan como varios bytes; para mostrarlos correctamente sería necesario utilizar una fuente de la OLED que contenga esos caracteres.
+
+\textbf{Análisis de los protocolos.} HTTP resulta adecuado para entregar la página inicial, mientras que WebSocket mantiene un canal TCP persistente, bidireccional y confiable para las mediciones y los mensajes. UDP tendría menor sobrecarga y latencia, pero no garantiza entrega ni orden, y el navegador no puede abrir directamente sockets UDP arbitrarios desde JavaScript. Por ello, WebSocket fue la opción más apropiada para esta interfaz web.
 
 \section*{\centering \fontsize{14}{17}\sffamily\selectfont Conclusiones}
 
-% \input{template/biblio.tex}
+La práctica permitió integrar adquisición analógica, conectividad WiFi, HTTP, WebSocket y una pantalla OLED. El ESP32 creó la red AP, entregó la página, actualizó el valor del potenciómetro y recibió mensajes desde el navegador.
+
+HTTP es adecuado para entregar la página inicial; WebSocket mantiene una conexión TCP persistente y bidireccional para enviar mediciones y mensajes. UDP tendría menor sobrecarga, pero no garantiza entrega ni orden y no puede utilizarse directamente desde JavaScript en el navegador.
+
+Como cualquier dispositivo de la red AP podría enviar texto, una aplicación
+real debería incorporar autenticación, cifrado, validación de mensajes y
+control de acceso. Esta solución puede aplicarse en monitoreo ambiental,
+automatización doméstica, mantenimiento y control remoto de actuadores.
+
+\newpage
+\textbf{NOTA: Si se desea consultar el código fuente completo del proyecto, se puede acceder al repositorio de GitHub en la siguiente dirección:} \url{https://github.com/lethalSopaper/laboratorio_sistemas_embebidos}
 
 \end{document}

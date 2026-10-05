@@ -53,9 +53,23 @@
 \lstdefinestyle{cstyle}{
 	language=C,
 	keywordstyle=\color{blue}\bfseries,
+	keywordstyle=[2]\color{ForestGreen}\bfseries,
+	keywordstyle=[3]\color{orange}\bfseries,
 	commentstyle=\color[rgb]{0,0.5,0}\itshape,
 	stringstyle=\color{red},
 	directivestyle=\color{purple},
+	morekeywords=[2]{uint8_t,uint16_t,uint32_t,int32_t,size_t,bool,esp_err_t,\
+		httpd_handle_t,httpd_req_t,httpd_ws_frame_t,wifi_config_t,\
+		wifi_init_config_t,adc_oneshot_unit_handle_t,i2c_config_t},
+	morekeywords=[3]{ESP_OK,ESP_ERR_NO_MEM,HTTP_GET,HTTPD_WS_TYPE_TEXT,\
+		WIFI_MODE_STA,WIFI_MODE_AP,WIFI_IF_STA,WIFI_IF_AP,ADC_CHANNEL_5,\
+		WIFI_AUTH_WPA2_PSK,CONFIG_HTTPD_WS_SUPPORT},
+	emph={app_main,esp_wifi_init,esp_wifi_start,esp_wifi_set_mode,\
+		esp_wifi_set_config,esp_netif_init,esp_netif_create_default_wifi_sta,\
+		esp_netif_create_default_wifi_ap,adc_oneshot_read,httpd_start,\
+		httpd_register_uri_handler,httpd_ws_recv_frame,httpd_ws_send_frame_async,\
+		u8g2_ClearBuffer,u8g2_DrawStr,u8g2_SendBuffer},
+	emphstyle=\color{Magenta},
     tabsize=4 % Overrides the global tabsize of 2 for C code specifically
 }
 
