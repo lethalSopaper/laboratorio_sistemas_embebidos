@@ -1,0 +1,20 @@
+# Configuracion de la clase de ahorro de energia
+# La XIAO ESP32-S3 Sense tiene 8 MB de flash
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+CONFIG_PARTITION_TABLE_FILENAME="partitions_singleapp_large.csv"
+
+# Igual que en la clase 13: las tareas que mandan estan en el nucleo 1, y
+# la tarea interna de red (tcpip_thread) tambien
+CONFIG_LWIP_TCPIP_TASK_AFFINITY_CPU1=y
+
+# Programas silenciosos: ni el arranque ni ESP-IDF imprimen nada por el
+# monitor serie. La salida es el audio en la PC y el medidor de corriente
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+
+# Programas 1 y 2: administrador de energia. Permite bajar la frecuencia de
+# la CPU y entrar solo a light sleep cuando todas las tareas esperan
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
