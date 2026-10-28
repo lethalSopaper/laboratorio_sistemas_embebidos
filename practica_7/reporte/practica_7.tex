@@ -1,0 +1,230 @@
+\documentclass[12pt, letterpaper]{article}
+
+\input{template/preamble.tex}
+
+\input{template/listings_config.tex}
+
+% \input{template/header.tex}
+
+\begin{document}
+
+\input{template/title_page.tex}
+
+\input{template/calificacion.tex}
+\normalsize
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Reconocimiento de Voz y de la Mano con IA}
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Objetivos}
+
+
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Resultados y Análisis}
+
+\subsection*{\fontsize{12}{17}\sffamily\selectfont Configuración del sistema}
+
+Para preparar el entorno de la práctica sin depender del router del laboratorio, se configuró el acceso Wi-Fi directamente en la microSD de la Orange Pi 2W. Esto implicó crear un archivo \texttt{.nmconnection} en \texttt{/etc/NetworkManager/system-connections/} asignando un UUID único, el SSID, la contraseña de la red y un nivel de \texttt{autoconnect-priority} alto (ej. 10) para priorizarla sobre otras redes. Se verificó que los permisos del archivo fueran \texttt{600} con propietario \texttt{root:root} para que el demonio NetworkManager lo detectara correctamente durante el arranque.
+
+Adicionalmente, se revisó el proceso de instalación del intérprete de comandos Zsh mediante el gestor de paquetes, incluyendo la descarga del framework Oh My Zsh y la clonación del plugin \texttt{zsh-autosuggestions} para habilitar el autocompletado predictivo. Aunque la documentación indica cómo cambiar el shell predeterminado con el comando \texttt{chsh}, se optó por conservar Bash por defecto. Esta decisión técnica priorizó la consistencia con el entorno de Fedora Linux configurado en el equipo principal, conservando intacto el prompt personalizado con formato ANSI de 256 colores que ya opera en el archivo \texttt{.bashrc}.
+
+\subsection*{\fontsize{12}{17}\selectfont Caso A - python 2\_puntos.py}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{A.1 Las herramientas de la terminal}} \\
+		\hline
+		1. \texttt{python 2\_puntos.py}. ¿Devuelve el prompt? Intenta escribir algo
+		&  Si deja escribir, pero no responde al input \\
+		\hline
+		2. \texttt{Ctrl+Z}. ¿Qué pasa con los puntos?
+		&  Lo suspende, los puntos se detienen \\
+		\hline
+		3. \texttt{jobs}. ¿Qué dice del trabajo?
+		&  [1]+  Stopped                 python 2\_puntos.py \\
+		\hline
+		4. \texttt{bg}. ¿Y ahora los puntos?
+		&  Los puntos reanudan su ejecución en segundo plano \\
+		\hline
+		5. \texttt{jobs}. ¿Cambió lo que dice?
+		& Si, [1]+  Running                 python 2\_puntos.py \& \\
+		\hline
+		6. \texttt{fg}. ¿Qué pasa con el prompt?
+		&  Se mueve al primer plano, el prompt vuelve a estar activo \\
+		\hline
+		7. \texttt{Ctrl+C}. ¿Qué pasa con los puntos?
+		& Lo interrumpe, los puntos se detienen \\
+		\hline
+\end{xltabular}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{A.2 Las herramientas del sistema}} \\ \hline
+		8. Lánzalo otra vez y recupera el prompt con \texttt{Ctrl+Z} y \texttt{bg}
+		& Al ejecutar de nuevo, se detuvo el programa con \texttt{Ctrl+Z} y se reanudó con \texttt{bg} \\ \hline
+		9. \texttt{ps aux | grep .py} (1). Anota el PID (segunda columna):
+		& 3071 \\ \hline
+		10. \texttt{kill -STOP <PID>}. ¿Los puntos? ¿Y qué dice \texttt{jobs}?
+		& Los puntos se detienen y \texttt{jobs} muestra que están detenidos \newline [1]+  Stopped                 python 2\_puntos.py \\ \hline
+		11. \texttt{kill -CONT <PID>}. ¿Los puntos?
+		& Los puntos se reanudan \\ \hline
+		12. \texttt{kill <PID>}. ¿Los puntos?
+		& Se vuelven a detener \\ \hline
+		13. \texttt{ps aux | grep .py} (1). ¿Qué devuelve ahora?
+		& [1]+  Terminated              python 2\_puntos.py \newline muestra que se ha terminado \\ \hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{A.3 ¿Sobrevive a la terminal?}} \\ \hline
+		14. Lánzalo otra vez. Cierra la ventana de la terminal y vuelve a entrar
+		& Se ejecuto, se cerro la terminal con \texttt{CTRL+D} y se volvió a entrar \\ \hline
+		15. \texttt{ps aux | grep .py} (1). ¿Sobrevivió?
+		& El proceso no sobrevivió al cierre de la terminal \\ \hline
+\end{xltabular}
+
+\subsubsection*{¿Qué herramientas funcionaron en este caso?}
+
+Las herramientas que funcionaron en este caso fueron \texttt{ps}, \texttt{kill}, \texttt{jobs}, \texttt{fg} y \texttt{bg}. Las cuales son comandos básicos para administrar procesos en la terminal. De igual forma este caso nos ayudo a comprobar atajos de teclado para dormir o matar procesos.
+
+\subsection*{\fontsize{12}{17}\selectfont Caso B - python 2\_puntos.py \& }
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		1. \texttt{python 2\_puntos.py \&}. ¿Devuelve el prompt? Intenta escribir algo & Al añadir \texttt{\&} al final del comando, el prompt se devuelve inmediatamente. Pasando el proceso a segundo plano. \\ \hline
+		2. \texttt{jobs}. ¿Qué dice? Compáralo con lo que decía en el paso 5 del caso A & El proceso se muestra como corriendo en segundo plano. Exactamente como en el caso A. \\ \hline
+		3. \texttt{fg}. ¿Puedes escribir ahora? ¿En qué caso acabas de convertirlo? & Al ingresar \texttt{fg}, el proceso se mueve a primer plano y puedes escribir. Similar al primer inciso del caso A.\\ \hline
+		4. \texttt{Ctrl+Z} y luego \texttt{bg}. ¿Recuperaste el prompt? ¿En qué caso estás ahora? & Al presionar \texttt{Ctrl+Z}, el proceso se detiene y al ejecutar \texttt{bg}, se reanuda en segundo plano. Similar al insico 5 del caso A.\\ \hline
+		5. \texttt{jobs}. ¿Se distingue de como estaba en el paso 2? & No se distingue ya que es la misma salida, indica que esta corriendo y en segundo plano. \\ \hline
+		6. \texttt{kill \%1}. ¿Funciona? ¿Y los puntos? & El comando es funcional y los puntos se detienen.\\ \hline
+\end{xltabular}
+
+\subsubsection*{En qué se diferencia de verdad del caso A?}
+
+El caso B se diferencia del caso A en que el proceso se ejecuta en segundo plano y no bloquea la terminal. Esto permite continuar utilizando la terminal mientras el proceso está en ejecución.
+
+
+\subsection*{\fontsize{12}{17}\selectfont Caso C - python 2\_puntos.py \& disown}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{C.1 Las herramientas de la terminal}} \\ \hline
+		1. \texttt{python 2\_puntos.py \& disown}. ¿Qué imprime? Anota el PID: 3650 &  Imprime el PID y comienza a ejecutar en segundo plano. Los puntos se dibujan de una forma más rápida.\\ \hline
+		2. \texttt{jobs}. ¿Lo ve? & No se muestra en la lista de trabajos.\\ \hline
+		3. \texttt{kill \%1}. ¿Qué responde? & -bash: kill: \%1: no such job \\ \hline
+		4. \texttt{bg}. ¿Qué responde? & -bash: bg: current: no such job \\ \hline
+		5. \texttt{fg}. ¿Qué responde? & -bash: fg: current: no such job \\ \hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{C.2 ¿Sobrevive a salir de la terminal?}} \\ \hline
+		6. Cierra la ventana de la terminal y vuelve a entrar & Se cerro la sesión con \texttt{CTRL+D} y se volvio a ingresar vía ssh.\\ \hline
+		7. \texttt{ps aux | grep py} (1). ¿Sobrevivió? ¿Es el mismo PID del paso 1? & Sí, es el mismo PID. Muestra: \newline orangepi    3650 87.5  3.0 232488 30196 ?        Rl   03:00   3:27 python 2\_puntos.py \newline lo cual indica que el proceso sigue corriendo.\\ \hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{C.3 Las herramientas del sistema}} \\ \hline
+		8. \texttt{kill -STOP <PID>}. ¿Los puntos? & Se detuvieron.\\ \hline
+		9. \texttt{kill -CONT <PID>}. ¿Los puntos? ¿Volvió al primer plano? & Los puntos se reanudaron y volvieron al primer plano.\\ \hline
+		10. \texttt{kill <PID>}, ¿Los puntos? & Los puntos volvieron a detenerse.\\ \hline
+		11. \texttt{ps aux | grep py} (1). ¿Qué devuelve ahora? & Ya no aparece en la lista de procesos, ya que el proceso fue terminado. \\ \hline
+\hline
+\end{xltabular}
+
+\subsubsection*{¿Qué herramientas dejaron de funcionar, y cuáles siguieron sirviendo?}
+
+Las herramientas que dejaron de funcionar fueron \texttt{jobs}, \texttt{fg} y \texttt{bg}. Las herramientas que siguieron funcionando fueron \texttt{ps} y \texttt{kill}. Esto se debe a que al usar \texttt{disown}, el proceso se desvincula de la terminal, por lo que ya no es considerado un trabajo de la terminal actual.
+
+
+\subsection*{\fontsize{12}{17}\selectfont Caso D - python -u 3\_calibracion.py > salida.log 2>\&1 \& disown}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{D.1 Sin redirigir la salida}} \\ \hline
+		1. \texttt{python 3\_calibracion.py \& disown}. Calibra las cuatro esquinas. ¿Qué imprime en cada toque? & imprime las coordenadas correspondientes a cada toque de la pantalla \\ \hline
+		2. Cierra la ventana de la terminal (directo sin CTRL+C) y vuelve a entrar
+		& Se cerró utilizando el atajo \texttt{CTRL+D}. \\ \hline
+		3. \texttt{ps aux | grep py} (1). ¿Sobrevivió al cierre?
+		& Sí, sobrevivió al cierre y conservó el PID 4225. \\ \hline
+		4. Toca la pantalla. ¿Dibuja el punto donde tocaste?
+		& No, no dibuja nada ni tampoco imprime las coordenadas. \\ \hline
+		5. \texttt{ps aux | grep py} (1). ¿Y ahora? Si quedó vivo, detenlo con \texttt{pkill -f 3\_calibracion.py}
+		& No se registra ningún toque; se eliminó el proceso correctamente. \\ \hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{D.2 Mandando la salida a un archivo}} \\ \hline
+		6. Lánzalo con la línea completa. ¿Imprime algo en la terminal? & Solo imprime el PID del proceso. \\ \hline
+		7. Calibra las cuatro esquinas y dibuja en la pantalla. ¿Escribe algo en la terminal? & No escribe nada en la terminal ya que la salida se redirige a un archivo. \\ \hline
+		8. \texttt{cat salida.log}. ¿Qué hay adentro? & Se encuentran las coordenadas de los toques realizados durante la calibración. \\ \hline
+		9. Cierra la ventana de la terminal y dibuja en la pantalla. ¿Funciona? & Si esta funcionando correctamente. \\ \hline
+		10. Vuelve a entrar & Se ingreso correctamente. \\ \hline
+		11. \texttt{ps aux | grep py} (1). ¿Sigue corriendo? & Si sigue corriendo.  con el PID de 4225\\ \hline
+		12. Detenlo con \texttt{pkill -f 3\_calibracion.py} & Se detuvo obteniendo: \\ \hline
+\end{xltabular}
+
+\subsubsection*{Los dos bloques hicieron exactamente lo mismo. ¿Por qué acabaron distinto?}
+
+En el primer bloque, la salida del programa se dirigió a la terminal, por lo que al cerrar la terminal, el proceso perdió su salida estándar y no pudo continuar funcionando correctamente. En el segundo bloque, la salida se redirigió a un archivo (\texttt{salida.log}), lo que permitió que el proceso continuara ejecutándose incluso después de cerrar la terminal, ya que no depende de la terminal para su salida.
+
+\subsection*{\fontsize{12}{17}\selectfont Caso E - screen}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{xltabular}{\textwidth}{|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+		\hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{E.1 Dejarlo trabajando}} \\ \hline
+		1. \texttt{screen -S practica}. ¿Qué cambió en la terminal? & Se creó una nueva sesión, dezplasando la terminal. \\ \hline
+		2. Adentro: \texttt{cd \textasciitilde/Documents/1\_Pantalla} y \texttt{source \textasciitilde/Documents/venv\_embebidos/bin/activate} & Se activó el entorno virtual de python. \\ \hline
+		3. \texttt{python 3\_calibracion.py}. Calibra y dibuja en la pantalla. ¿Imprime en la terminal? & Se imprime en la terminal, el punto corresponde a la posición donde se tocó la pantalla. \\ \hline
+		4. \texttt{Ctrl+A} y luego \texttt{D}. ¿Qué dice? ¿Dónde quedaste? & [detached from 4649.practica] además de que indico que no existia otra ventana. Me encuentro en la sesión original. \\ \hline
+		5. \texttt{screen -ls}. ¿Qué lista? & Indica las sesiones activas\\ \hline
+		\rowcolor{gray!25}
+		\multicolumn{2}{|c|}{\textbf{E.2 Después de cerrar la terminal}} \\ \hline
+		6. Cierra la ventana de la terminal (directo sin Ctrl+C) y dibuja en la pantalla. ¿Funciona? & Funciona, sin ninguna interrupción\\ \hline
+		7. Vuelve a entrar & Al ingresar sigue funcionando sin cambio aparente.\\ \hline
+		8. \texttt{ps aux | grep py} (1). ¿Sigue corriendo? & Se encuentra ejecutandose en mi plano desde su terminal, tambien indica que esta suspendido esperando una entrada e indica que esta empleando muúltiples hilos  \\ \hline
+		9. \texttt{jobs}. ¿Lo ve? & No lo ve.  \\ \hline
+		10. \texttt{screen -ls}. ¿Sigue ahi la sesión? & La sesión sigue activa.\\ \hline
+		11. \texttt{screen -r practica}. ¿Aparece lo que dibujaste con la terminal cerrada? & Al reingresar aparece lo que se dibujó.\\ \hline
+		12. Toca la pantalla. ¿Lo imprime en vivo? & Se actualiza en tiempo real.\\ \hline
+		13. \texttt{Ctrl+Z} y luego \texttt{jobs}. ¿Lo ve ahora? & Al ingresar \texttt{CTRL+Z} el proceso se suspende y en la lista de jobs aparece como [1] Stopped\\ \hline
+		14. \texttt{fg} y luego \texttt{Ctrl+C}. ¿Puedes detenerlo desde aquí? & Si, al usar \texttt{fg} se vuelve a traer el proceso al frente y con \texttt{Ctrl+C} se puede detener. \\ \hline
+		15. \texttt{exit} para cerrar la sesión de screen & al cerrar la sessión e ingresar nuevamente screen -ls, ya no aparece en la lista. Por lo que la otra sesión se cierra correctamente.\\ \hline
+\end{xltabular}
+
+\subsubsection*{Compara los pasos 9 y 13: el mismo comando, dos respuestas. ¿Dónde estabas en cada uno?}
+
+La diferencia entre los pasos 9 y 13 es que en el paso 9, el comando \texttt{jobs} se ejecutó en la terminal original, donde no había ningún proceso en segundo plano asociado a esa terminal, por lo que no se mostró ningún trabajo. En el paso 13, el comando \texttt{jobs} se ejecutó dentro de la sesión de \texttt{screen}, donde el proceso estaba suspendido, por lo que sí se mostró como un trabajo detenido.
+
+\subsection*{\fontsize{12}{17}\selectfont Sintesis}
+
+\renewcommand{\arraystretch}{1.35}
+\begin{table}[H]
+	\centering
+	\begin{tabularx}{\textwidth}{|c|c|X|c|X|}
+		\hline
+		\rowcolor{gray!25}
+		\textbf{Letra} & \textbf{Caso} & \textbf{Comando} & \textbf{Opción} & \textbf{Aplicación principal} \\ \hline
+		A & Caso A & \texttt{python 2\_puntos.py} & (C) & Dejar el programa trabajando y poder desconectarse de la terminal \\ \hline
+		B & Caso B & \texttt{python 2\_puntos.py \&} & (A) & Correr el programa en la sesión actual y nada más: probarlo y detenerlo \\ \hline
+		C & Caso C & \texttt{python 2\_puntos.py \& disown} & (E) & Volver a ver la salida en vivo y recuperar el control del programa \\ \hline
+		D & Caso D & \texttt{python -u 3\_calibracion.py > salida.log 2>\&1 \& disown} & (B) & Seguir usando la terminal mientras el programa corre \\ \hline
+		E & Caso E & \texttt{screen} & (D) & Darle a un programa que imprime un lugar donde vaciar su salida sin fallar \\ \hline
+	\end{tabularx}
+\end{table}
+
+\vspace{0.5cm}
+\subsubsection*{¿Qué casos conviene usar si el programa imprime en la terminal? Encierra los que apliquen.}
+
+Los casos que más convienen usar si el programa imprime en la terminal son los casos A, B y E. Esto se debe a que estos casos permiten ver la salida del programa en tiempo real y también permiten interactuar con él mientras se ejecuta. En cambio, el caso C al utilizar \texttt{disown} desvincula el proceso de la terminal, por lo que no se puede ver la salida en tiempo real. El caso D redirige la salida a un archivo, por lo que no se puede ver la salida en la terminal.
+
+\section*{\centering \fontsize{14}{17}\sffamily\selectfont Conclusiones}
+
+El uso de herramientas como \texttt{jobs}, \texttt{fg}, \texttt{bg}, \texttt{kill} y \texttt{screen} permite un control más eficiente de los procesos en ejecución en la terminal. La práctica demostró cómo diferentes métodos de ejecución y manejo de procesos afectan la interacción con la terminal y la persistencia de los procesos al cerrar la sesión.
+
+El caso de redirección de salida a un archivo mostró la importancia de gestionar correctamente la salida estándar y de error para mantener la funcionalidad del programa incluso después de cerrar la terminal. Por otro lado, el uso de \texttt{screen} proporcionó una solución robusta para mantener procesos activos y accesibles, permitiendo desconectarse y reconectarse sin perder el estado del programa.
+
+Como conclusión general, la práctica enfatizó la necesidad de comprender y aplicar correctamente las herramientas de gestión de procesos para optimizar el flujo de trabajo en entornos de desarrollo y administración de sistemas.
+% \input{template/biblio.tex}
+
+\end{document}
