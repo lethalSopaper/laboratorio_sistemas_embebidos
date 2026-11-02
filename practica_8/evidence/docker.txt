@@ -1,0 +1,5 @@
+orangepi@equipo12:~$ docker ps
+CONTAINER ID   IMAGE              COMMAND             CREATED      STATUS                             PORTS                                         NAMES
+b31b98dfbb7b   nodered/node-red   "./entrypoint.sh"   5 days ago   Up 13 seconds (health: starting)   0.0.0.0:1880->1880/tcp, [::]:1880->1880/tcp   nodered
+orangepi@equipo12:~$ hostname -I
+192.168.0.105 172.17.0.1 fd65:e6df:2a53:75b2:3e0b:40ff:fe21:1251 
